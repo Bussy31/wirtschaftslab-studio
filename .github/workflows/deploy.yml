@@ -1,0 +1,25 @@
+name: Deploy Lege-Video Studio
+
+on:
+  push:
+    branches:
+      - main  # Ggf. auf master ändern, falls dein Branch so heißt
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: HTML/JS-Code updaten
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # HIER DEINEN PFAD ZUM LEGE-VIDEO ORDNER EINTRAGEN:
+            cd /var/www/html/wirtschaftslab-studio
+            
+            # Änderungen vom Server verwerfen und sauber von GitHub ziehen
+            git fetch --all
+            git reset --hard origin/main
+            git pull origin main

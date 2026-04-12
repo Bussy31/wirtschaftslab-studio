@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Lege-Video Studio</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <style>
         :root {
@@ -20,17 +21,27 @@
 
         h1 { margin: 0 0 15px 0; font-size: 22px; color: #2c3e50; }
 
+        /* OBERE LEISTE (Projekt & Audio) */
         .toolbar { display: flex; justify-content: center; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
 
-        button {
+        /* NEUE LEISTE FÜR DIE LEINWAND (Text, Löschen, Wischen) */
+        .canvas-toolbar { display: flex; justify-content: center; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
+
+        button, .btn-label {
             padding: 8px 16px; font-size: 14px; cursor: pointer; border: none; border-radius: 5px;
             transition: background 0.2s, transform 0.1s; font-weight: bold; text-transform: uppercase;
+            display: inline-block; box-sizing: border-box; text-decoration: none;
         }
-        button:active { transform: scale(0.97); }
+        button:active, .btn-label:active { transform: scale(0.97); }
         button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        input[type="file"] { display: none; }
 
         .btn-audio { background-color: #007bff; color: white; }
         .btn-audio.recording { background-color: var(--danger); animation: pulse 1.5s infinite; }
+        .btn-upload { background-color: #17a2b8; color: white; }
+        .btn-save { background-color: #6f42c1; color: white; }
+
         .btn-tool { background-color: #dee2e6; color: var(--text); }
         .btn-tool:hover { background-color: #ced4da; }
         .btn-wischen { background-color: var(--warning); color: white; }
@@ -48,35 +59,30 @@
         .hint-text { font-size: 13px; color: #7f8c8d; margin-bottom: 10px; font-weight: 500; }
         .highlight { color: var(--primary); font-weight: bold; }
 
+        /* Suchergebnisse als Galerie (3-zeilig und an Layout-Breite angepasst) */
         #searchResults {
-            display: flex; gap: 10px; justify-content: center; align-items: center;
-            height: 65px; margin-bottom: 15px; padding: 0 10px; color: #666;
+            display: flex; gap: 10px; justify-content: flex-start; align-content: flex-start;
+            flex-wrap: wrap; height: 200px; overflow-y: auto;
+            max-width: 1100px; margin: 0 auto 15px auto;
+            padding: 10px; color: #666;
+            border: 1px dashed #ccc; background: #fff; border-radius: 5px;
         }
 
-        /* NEU: Das Layout-Grid für Leinwand + Protokoll */
-        .studio-layout {
-            display: flex; justify-content: center; gap: 20px; max-width: 1100px; margin: 0 auto; align-items: flex-start;
-        }
+        .studio-layout { display: flex; justify-content: center; gap: 20px; max-width: 1200px; margin: 0 auto; align-items: flex-start; }
+        .main-column { display: flex; flex-direction: column; width: 800px; flex-shrink: 0; align-items: center; gap: 15px; }
 
         .canvas-container-wrapper {
-            position: relative; width: 800px; flex-shrink: 0;
+            position: relative; width: 100%;
             box-shadow: 0px 4px 15px rgba(0,0,0,0.1); border: 2px solid #ccc; background-color: white; border-radius: 4px;
         }
 
-        /* NEU: Das Panel für das Protokoll */
         .protocol-panel {
             width: 280px; background: white; border: 2px solid #ccc; border-radius: 4px;
             box-shadow: 0px 4px 15px rgba(0,0,0,0.05); text-align: left; max-height: 475px; display: flex; flex-direction: column;
         }
-        .protocol-header {
-            background: #eee; padding: 10px; font-weight: bold; border-bottom: 1px solid #ccc; margin: 0; font-size: 14px; text-align: center;
-        }
-        .protocol-list {
-            list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1;
-        }
-        .protocol-list li {
-            padding: 8px 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 13px;
-        }
+        .protocol-header { background: #eee; padding: 10px; font-weight: bold; border-bottom: 1px solid #ccc; margin: 0; font-size: 14px; text-align: center; }
+        .protocol-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; }
+        .protocol-list li { padding: 8px 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
         .protocol-list li:hover { background: #f9f9f9; }
         .protocol-list .time-badge { background: #e0e0e0; padding: 2px 5px; border-radius: 3px; font-size: 11px; font-family: monospace; }
         .delete-action-btn { background: none; border: none; color: var(--danger); font-size: 14px; cursor: pointer; padding: 0 5px; }
@@ -92,21 +98,29 @@
         #playhead { width: 2px; height: 100%; background: red; position: absolute; left: 0; z-index: 10; pointer-events: none; }
         #markers { width: 100%; height: 100%; position: absolute; pointer-events: none; }
 
-        .bottom-controls { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 15px; }
         #audioPlayback { display: none; }
-
-        .action-buttons { display: flex; gap: 15px; width: 800px; display: none; justify-content: center;}
+        .action-buttons { display: none; gap: 15px; justify-content: center; width: 100%; }
+        .divider { width: 2px; background-color: #ccc; margin: 0 5px; }
     </style>
 </head>
 <body>
 
-    <h1>Lege-Video Studio 🎬</h1>
+    <h1>wirtschaftslab-studio 🎬</h1>
 
     <div class="toolbar">
-        <button id="recordBtn" class="btn-audio">🎙️ 1. Ton aufnehmen</button>
-        <button id="addTextBtn" class="btn-tool">✍️ Text</button>
-        <button id="deleteBtn" class="btn-tool">🗑️ Markiertes Löschen</button>
-        <button id="clearBtn" class="btn-wischen">🧹 Alles Wischen</button>
+        <button id="recordBtn" class="btn-audio">🎙️ Aufnehmen</button>
+        <label class="btn-label btn-upload">
+            📁 Audio hochladen
+            <input type="file" id="audioUpload" accept="audio/*">
+        </label>
+
+        <div class="divider"></div>
+
+        <button id="saveProjectBtn" class="btn-save">💾 Projekt speichern</button>
+        <label class="btn-label btn-save">
+            📂 Projekt laden
+            <input type="file" id="loadProjectInput" accept=".json">
+        </label>
     </div>
 
     <div class="search-box">
@@ -120,14 +134,28 @@
 
     <div id="searchResults">Suche nach Begriffen, um Bilder zu finden...</div>
 
+    <div class="canvas-toolbar">
+        <button id="addTextBtn" class="btn-tool">✍️ Text hinzufügen</button>
+        <button id="deleteBtn" class="btn-tool">🗑️ Markiertes löschen</button>
+        <button id="clearBtn" class="btn-wischen">🧹 Alles wischen</button>
+    </div>
+
     <div class="studio-layout">
 
-        <div class="canvas-container-wrapper" id="dropZone">
-            <div id="wipeArm"></div>
-            <canvas id="fabricCanvas" width="800" height="450"></canvas>
-            <div id="timeline-container" title="Klicke hier, um zu einer Zeit zu springen">
-                <div id="playhead"></div>
-                <div id="markers"></div>
+        <div class="main-column">
+            <div class="canvas-container-wrapper" id="dropZone">
+                <div id="wipeArm"></div>
+                <canvas id="fabricCanvas" width="800" height="450"></canvas>
+                <div id="timeline-container" title="Klicke hier, um zu einer Zeit zu springen">
+                    <div id="playhead"></div>
+                    <div id="markers"></div>
+                </div>
+            </div>
+
+            <audio id="audioPlayback"></audio>
+            <div class="action-buttons" id="actionButtons">
+                <button id="previewBtn" class="btn-preview">▶️ Live-Vorschau starten</button>
+                <button id="exportBtn" class="btn-render">🎬 Als Video speichern!</button>
             </div>
         </div>
 
@@ -138,14 +166,6 @@
             </ul>
         </div>
 
-    </div>
-
-    <div class="bottom-controls">
-        <audio id="audioPlayback"></audio>
-        <div class="action-buttons" id="actionButtons">
-            <button id="previewBtn" class="btn-preview">▶️ Live-Vorschau starten</button>
-            <button id="exportBtn" class="btn-render">🎬 Als Video speichern!</button>
-        </div>
     </div>
 
     <script src="app.js"></script>

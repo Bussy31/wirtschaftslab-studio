@@ -1,21 +1,51 @@
+// --- API SCHLÜSSEL ---
 const PIXABAY_KEY = '55407865-e0aa3f47b82bc64c318018f21';
+const PEXELS_KEY = 'FDUpT5ntSabJvIIO72985ip5QvVULAtDTdYD3TXFQj7X5m1W74tb1Z38'; // <--- Füge deinen Pexels-Key hier zwischen die Anführungszeichen ein!
 
 let videoDrehbuch = [];
 let fertigeAudioDatei = null;
 
 function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
 
-// --- TEIL 0: NEU - PROTOKOLL UPDATEN ---
+// --- TEIL 0: AUTO-SAVE (IndexedDB) ---
+function autoSave() {
+    localforage.setItem('legeVideoProject', {
+        drehbuch: videoDrehbuch,
+        audioBlob: fertigeAudioDatei
+    }).catch(err => console.log("Auto-Save Fehler:", err));
+}
+
+// Prüft beim Start, ob ein Absturz/Reload passiert ist
+window.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const savedData = await localforage.getItem('legeVideoProject');
+        if (savedData && (savedData.drehbuch.length > 0 || savedData.audioBlob)) {
+            if (confirm("💾 Es wurde ein ungespeicherter Fortschritt gefunden!\n\nMöchtest du genau dort weitermachen, wo du aufgehört hast?")) {
+                videoDrehbuch = savedData.drehbuch || [];
+                if (savedData.audioBlob) {
+                    fertigeAudioDatei = savedData.audioBlob;
+                    audioPlayback.src = URL.createObjectURL(fertigeAudioDatei);
+                    actionButtons.style.display = 'flex';
+                }
+                updateProtokoll();
+                rekonstruiereLeinwand(0);
+            } else {
+                localforage.removeItem('legeVideoProject');
+            }
+        }
+    } catch (e) { console.error("Fehler beim Laden des Auto-Saves", e); }
+});
+
+// --- TEIL 1: PROTOKOLL & TIMELINE NEU ZEICHNEN ---
 function updateProtokoll() {
     const protocolList = document.getElementById('protocolList');
-    protocolList.innerHTML = ''; // Liste leeren
+    protocolList.innerHTML = '';
 
     if (videoDrehbuch.length === 0) {
         protocolList.innerHTML = '<li style="justify-content: center; color: #999; font-style: italic;">Noch keine Aktionen...</li>';
         return;
     }
 
-    // Wir sortieren das Drehbuch nach Zeit für die Anzeige
     const sortiertesDrehbuch = [...videoDrehbuch].sort((a, b) => a.zeit - b.zeit);
 
     sortiertesDrehbuch.forEach(aktion => {
@@ -37,38 +67,46 @@ function updateProtokoll() {
     });
 }
 
-// Diese Funktion wird aufgerufen, wenn man im Protokoll auf das X klickt
 window.loescheAktionManuell = function(id) {
-    autoPause(); // Wenn Vorschau läuft -> Stopp!
-
-    // 1. Aus dem Drehbuch löschen
+    autoPause();
     videoDrehbuch = videoDrehbuch.filter(item => item.id !== id);
-
-    // 2. Marker aus der Zeitleiste entfernen
     const markerDiv = document.querySelector(`.marker-div[data-id="${id}"]`);
     if (markerDiv) markerDiv.remove();
 
-    // 3. Wenn es ein Bild/Text ist, direkt von der Leinwand löschen
     const objectOnCanvas = canvas.getObjects().find(o => o.myId === id);
-    if (objectOnCanvas) {
-        canvas.remove(objectOnCanvas);
-    } else {
-        // Wenn es z.B. ein "Wischer" war, sicherheitshalber die Leinwand zur aktuellen Zeit neu aufbauen
-        rekonstruiereLeinwand(audioPlayback.currentTime || 0);
-    }
+    if (objectOnCanvas) canvas.remove(objectOnCanvas);
+    else rekonstruiereLeinwand(audioPlayback.currentTime || 0);
 
-    updateProtokoll(); // Liste aktualisieren
+    updateProtokoll(); autoSave();
 };
 
+function zeichneTimelineNeu() {
+    const markersContainer = document.getElementById('markers');
+    markersContainer.innerHTML = '';
+    if (!audioPlayback.duration || !isFinite(audioPlayback.duration)) return;
 
-// --- TEIL 1: AUDIO AUFNAHME ---
+    videoDrehbuch.forEach(aktion => {
+        let color = aktion.aktion === 'alles_wischen' ? 'var(--warning)' : 'rgba(142,68,173,0.7)';
+        const marker = document.createElement('div');
+        marker.className = 'marker-div'; marker.dataset.id = aktion.id;
+        marker.style.position = 'absolute'; marker.style.left = (aktion.zeit / audioPlayback.duration) * 100 + "%";
+        marker.style.width = '4px'; marker.style.height = '100%'; marker.style.backgroundColor = color;
+        markersContainer.appendChild(marker);
+    });
+}
+
+const audioPlayback = document.getElementById('audioPlayback');
+const actionButtons = document.getElementById('actionButtons');
+audioPlayback.addEventListener('loadedmetadata', zeichneTimelineNeu);
+
+
+// --- TEIL 2: AUDIO (AUFNAHME & UPLOAD) ---
 let mediaRecorder;
 let audioChunks = [];
 let isRecording = false;
 
 const recordBtn = document.getElementById('recordBtn');
-const audioPlayback = document.getElementById('audioPlayback');
-const actionButtons = document.getElementById('actionButtons');
+const audioUpload = document.getElementById('audioUpload');
 
 recordBtn.addEventListener('click', async () => {
     if (!isRecording) {
@@ -78,37 +116,79 @@ recordBtn.addEventListener('click', async () => {
             mediaRecorder.ondataavailable = event => { audioChunks.push(event.data); };
             mediaRecorder.onstop = () => {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                fertigeAudioDatei = audioBlob;
-                audioPlayback.src = URL.createObjectURL(audioBlob);
-                actionButtons.style.display = 'flex';
-                audioChunks = [];
+                fertigeAudioDatei = audioBlob; audioPlayback.src = URL.createObjectURL(audioBlob);
+                actionButtons.style.display = 'flex'; audioChunks = []; autoSave();
             };
-            mediaRecorder.start();
-            isRecording = true;
-            recordBtn.innerHTML = "⏹️ Stoppen";
-            recordBtn.classList.add("recording");
+            mediaRecorder.start(); isRecording = true;
+            recordBtn.innerHTML = "⏹️ Stoppen"; recordBtn.classList.add("recording");
         } catch (err) { alert("Mikrofon-Zugriff verweigert!"); }
     } else {
-        mediaRecorder.stop();
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
-        isRecording = false;
-        recordBtn.innerHTML = "🎙️ Ton neu aufnehmen";
-        recordBtn.classList.remove("recording");
-        videoDrehbuch = [];
-        document.getElementById('markers').innerHTML = '';
-        canvas.clear();
-        updateProtokoll(); // Liste aktualisieren
+        mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        isRecording = false; recordBtn.innerHTML = "🎙️ Aufnehmen"; recordBtn.classList.remove("recording");
+        videoDrehbuch = []; document.getElementById('markers').innerHTML = ''; canvas.clear(); updateProtokoll(); autoSave();
     }
 });
 
-// --- TEIL 2: CANVAS & GRÖSSEN-FIX ---
-const canvas = new fabric.Canvas('fabricCanvas', { selectionColor: 'rgba(142,68,173,0.1)', selectionLineWidth: 1 });
-
-canvas.on('before:render', function() {
-    const ctx = this.getContext();
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, this.width, this.height);
+audioUpload.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        fertigeAudioDatei = file; audioPlayback.src = URL.createObjectURL(file);
+        actionButtons.style.display = 'flex';
+        if (videoDrehbuch.length > 0) {
+            if (!confirm("Du hast ein neues Audio hochgeladen.\nSoll dein bisheriges Lege-Video Projekt erhalten bleiben?")) {
+                videoDrehbuch = []; canvas.clear(); updateProtokoll(); document.getElementById('markers').innerHTML = '';
+            }
+        }
+        autoSave();
+    }
+    this.value = '';
 });
+
+
+// --- TEIL 3: SPEICHERN & LADEN (MANUELL) ---
+document.getElementById('saveProjectBtn').addEventListener('click', () => {
+    if (videoDrehbuch.length === 0 && !fertigeAudioDatei) { alert("Es gibt noch nichts zu speichern!"); return; }
+    let projektDaten = { drehbuch: videoDrehbuch, audioData: null };
+    if (fertigeAudioDatei) {
+        const reader = new FileReader();
+        reader.onloadend = () => { projektDaten.audioData = reader.result; downloadJson(projektDaten); };
+        reader.readAsDataURL(fertigeAudioDatei);
+    } else downloadJson(projektDaten);
+});
+
+function downloadJson(daten) {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(daten));
+    const a = document.createElement('a'); a.href = dataStr; a.download = "mein_legevideo_projekt.json";
+    document.body.appendChild(a); a.click(); a.remove();
+}
+
+document.getElementById('loadProjectInput').addEventListener('change', function(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const parsedData = JSON.parse(e.target.result);
+            videoDrehbuch = parsedData.drehbuch || parsedData;
+            updateProtokoll(); rekonstruiereLeinwand(0);
+
+            if (parsedData.audioData) {
+                const res = await fetch(parsedData.audioData); const blob = await res.blob();
+                fertigeAudioDatei = blob; audioPlayback.src = URL.createObjectURL(blob);
+                actionButtons.style.display = 'flex';
+                alert("✅ Projekt inkl. Audio erfolgreich geladen!");
+            } else {
+                zeichneTimelineNeu(); alert("✅ Projekt geladen (ohne Audio, bitte noch Ton hochladen).");
+            }
+            autoSave();
+        } catch(err) { alert("Fehler beim Laden der Datei."); }
+    };
+    reader.readAsText(file); this.value = '';
+});
+
+
+// --- TEIL 4: CANVAS & GRÖSSEN-FIX ---
+const canvas = new fabric.Canvas('fabricCanvas', { selectionColor: 'rgba(142,68,173,0.1)', selectionLineWidth: 1 });
+canvas.on('before:render', function() { const ctx = this.getContext(); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, this.width, this.height); });
 canvas.requestRenderAll();
 
 canvas.on('object:modified', function(e) {
@@ -116,66 +196,48 @@ canvas.on('object:modified', function(e) {
     if (obj && obj.myId) {
         const eintrag = videoDrehbuch.find(item => item.id === obj.myId);
         if (eintrag) {
-            eintrag.x = obj.left;
-            eintrag.y = obj.top;
-            eintrag.scaleX = obj.scaleX;
-            eintrag.scaleY = obj.scaleY;
-            if (obj.type === 'i-text') {
-                eintrag.text = obj.text;
-                updateProtokoll(); // Aktualisiert den Text in der Liste
-            }
+            eintrag.x = obj.left; eintrag.y = obj.top; eintrag.scaleX = obj.scaleX; eintrag.scaleY = obj.scaleY;
+            if (obj.type === 'i-text') { eintrag.text = obj.text; updateProtokoll(); }
+            autoSave();
         }
     }
 });
 
-function autoPause() {
-    if (!audioPlayback.paused) togglePreview();
-}
+function autoPause() { if (!audioPlayback.paused) togglePreview(); }
 
 document.getElementById('addTextBtn').addEventListener('click', () => {
-    autoPause();
-    const objId = generateId();
-    const text = new fabric.IText('Tippe...', {
-        left: 250, top: 200, fontFamily: 'Comic Sans MS, Arial', fill: '#333333', fontSize: 35, fontWeight: 'bold'
-    });
-    text.myId = objId;
-    canvas.add(text); canvas.setActiveObject(text);
+    if (!fertigeAudioDatei) return alert("Bitte zuerst Audio aufnehmen/hochladen!");
+    autoPause(); const objId = generateId();
+    const text = new fabric.IText('Tippe...', { left: 250, top: 200, fontFamily: 'Comic Sans MS, Arial', fill: '#333333', fontSize: 35, fontWeight: 'bold' });
+    text.myId = objId; canvas.add(text); canvas.setActiveObject(text);
     const aktuelleZeit = audioPlayback.currentTime || 0;
     videoDrehbuch.push({ id: objId, zeit: aktuelleZeit, aktion: 'text_hinzufuegen', text: 'Tippe...', x: 250, y: 200, scaleX: 1, scaleY: 1 });
-    addMarker(aktuelleZeit, objId, 'rgba(142,68,173,0.7)');
-    updateProtokoll(); // <--- NEU
+    addMarker(aktuelleZeit, objId, 'rgba(142,68,173,0.7)'); updateProtokoll(); autoSave();
 });
 
 document.getElementById('deleteBtn').addEventListener('click', () => {
-    autoPause();
-    const activeObject = canvas.getActiveObject();
-    if (activeObject) {
-        // Wir nutzen jetzt einfach unsere neue Lösch-Funktion, die macht alles sauber!
-        window.loescheAktionManuell(activeObject.myId);
-    }
+    autoPause(); const activeObject = canvas.getActiveObject();
+    if (activeObject) window.loescheAktionManuell(activeObject.myId);
 });
 
-// --- TEIL 3: ANIMIERTES WISCHEN ---
+// --- TEIL 5: ANIMIERTES WISCHEN ---
 function spieleWischAnimation(sollLeinwandGeloeschtWerden) {
     const wipeArm = document.getElementById('wipeArm');
-    wipeArm.style.transition = 'left 0.8s ease-in-out';
-    wipeArm.style.left = '0%';
+    wipeArm.style.transition = 'left 0.8s ease-in-out'; wipeArm.style.left = '0%';
     setTimeout(() => { if (sollLeinwandGeloeschtWerden) canvas.clear(); }, 400);
     setTimeout(() => { wipeArm.style.left = '100%'; }, 800);
     setTimeout(() => { wipeArm.style.transition = 'none'; wipeArm.style.left = '-100%'; }, 1600);
 }
 
 document.getElementById('clearBtn').addEventListener('click', () => {
-    autoPause();
-    spieleWischAnimation(true);
-    const aktuelleZeit = audioPlayback.currentTime || 0;
-    const objId = generateId();
-    videoDrehbuch.push({ id: objId, zeit: aktuelleZeit, aktion: 'alles_wischen' });
-    addMarker(aktuelleZeit, objId, 'var(--warning)');
-    updateProtokoll(); // <--- NEU
+    if (!fertigeAudioDatei) return alert("Bitte zuerst Audio aufnehmen/hochladen!");
+    autoPause(); spieleWischAnimation(true); const aktuelleZeit = audioPlayback.currentTime || 0;
+    const objId = generateId(); videoDrehbuch.push({ id: objId, zeit: aktuelleZeit, aktion: 'alles_wischen' });
+    addMarker(aktuelleZeit, objId, 'var(--warning)'); updateProtokoll(); autoSave();
 });
 
-// --- TEIL 4: BILDERSUCHE & DROP ---
+
+// --- TEIL 6: DOPPEL-BILDERSUCHE (Pixabay + Pexels) & DROP ---
 const searchBtn = document.getElementById('searchBtn');
 const searchResults = document.getElementById('searchResults');
 const dropZone = document.getElementById('dropZone');
@@ -183,45 +245,78 @@ const dropZone = document.getElementById('dropZone');
 searchBtn.addEventListener('click', async () => {
     const query = document.getElementById('searchInput').value;
     if (!query) return;
-    const url = `https://pixabay.com/api/?key=${PIXABAY_KEY}&q=${encodeURIComponent(query)}&image_type=illustration&per_page=10`;
 
-    searchResults.innerHTML = '<i>Suche läuft...</i>';
+    searchResults.innerHTML = '<i>Suche in Datenbanken läuft...</i>';
+    let allResults = [];
+
+    // 1. Pixabay Abfrage (Fokus auf Vektoren, Limit 40)
     try {
-        const response = await fetch(url);
-        const data = await response.json();
-        searchResults.innerHTML = '';
-        if (data.hits.length === 0) { searchResults.innerHTML = '<span style="color: #e74c3c;">Keine Bilder gefunden.</span>'; return; }
-
-        data.hits.forEach(hit => {
-            const img = document.createElement('img');
-            img.src = hit.previewURL;
-            img.style.height = '60px'; img.style.cursor = 'pointer'; img.style.border = '2px solid #fff'; img.style.borderRadius = '4px';
-            img.draggable = true;
-            img.addEventListener('dragstart', (e) => { e.dataTransfer.setData('bildUrl', hit.largeImageURL); });
-
-            img.addEventListener('click', () => {
-                autoPause();
-                const objId = generateId();
-                fabric.Image.fromURL(hit.largeImageURL, function(fabricImg) {
-                    const x = 400 - (fabricImg.width * 0.3) / 2; const y = 225 - (fabricImg.height * 0.3) / 2;
-                    fabricImg.set({ left: x, top: y, scaleX: 0.3, scaleY: 0.3 });
-                    fabricImg.myId = objId; canvas.add(fabricImg); canvas.setActiveObject(fabricImg);
-
-                    const aktuelleZeit = audioPlayback.currentTime || 0;
-                    videoDrehbuch.push({ id: objId, zeit: aktuelleZeit, aktion: 'bild_hinzufuegen', url: hit.largeImageURL, x: x, y: y, scaleX: 0.3, scaleY: 0.3 });
-                    addMarker(aktuelleZeit, objId, 'rgba(142,68,173,0.7)');
-                    updateProtokoll(); // <--- NEU
-                }, { crossOrigin: 'anonymous' });
+        const pixabayUrl = `https://pixabay.com/api/?key=${PIXABAY_KEY}&q=${encodeURIComponent(query)}&image_type=vector&per_page=40`;
+        const res = await fetch(pixabayUrl);
+        const data = await res.json();
+        if (data.hits) {
+            data.hits.forEach(hit => {
+                allResults.push({ preview: hit.previewURL, full: hit.largeImageURL, source: 'Pixabay' });
             });
-            searchResults.appendChild(img);
+        }
+    } catch (err) { console.error("Pixabay Fehler", err); }
+
+    // 2. Pexels Abfrage (Heimlich "illustration" anhängen, Limit 40)
+    try {
+        if (PEXELS_KEY !== 'HIER_DEIN_PEXELS_KEY_EINTRAGEN' && PEXELS_KEY !== '') {
+            const pexelsQuery = encodeURIComponent(query + " illustration");
+            const pexelsUrl = `https://api.pexels.com/v1/search?query=${pexelsQuery}&per_page=40`;
+            const res = await fetch(pexelsUrl, { headers: { Authorization: PEXELS_KEY } });
+            const data = await res.json();
+            if (data.photos) {
+                data.photos.forEach(photo => {
+                    allResults.push({ preview: photo.src.tiny, full: photo.src.large, source: 'Pexels' });
+                });
+            }
+        }
+    } catch (err) { console.error("Pexels Fehler", err); }
+
+    // Ergebnisse rendern
+    searchResults.innerHTML = '';
+    if (allResults.length === 0) {
+        searchResults.innerHTML = '<span style="color: #e74c3c;">Keine Bilder gefunden.</span>';
+        return;
+    }
+
+    // Mischen, damit Pixabay und Pexels Bilder bunt gemischt erscheinen
+    allResults.sort(() => Math.random() - 0.5);
+
+    allResults.forEach(hit => {
+        const img = document.createElement('img');
+        img.src = hit.preview;
+        img.title = "Quelle: " + hit.source; // Zeigt beim Drüberfahren an, woher das Bild kommt
+        img.style.height = '60px'; img.style.cursor = 'pointer'; img.style.border = '2px solid #ccc'; img.style.borderRadius = '4px';
+
+        img.draggable = true;
+        img.addEventListener('dragstart', (e) => { e.dataTransfer.setData('bildUrl', hit.full); });
+
+        img.addEventListener('click', () => {
+            if (!fertigeAudioDatei) return alert("Bitte zuerst Audio aufnehmen/hochladen!");
+            autoPause(); const objId = generateId();
+            fabric.Image.fromURL(hit.full, function(fabricImg) {
+                const x = 400 - (fabricImg.width * 0.3) / 2; const y = 225 - (fabricImg.height * 0.3) / 2;
+                fabricImg.set({ left: x, top: y, scaleX: 0.3, scaleY: 0.3 });
+                fabricImg.myId = objId; canvas.add(fabricImg); canvas.setActiveObject(fabricImg);
+
+                const aktuelleZeit = audioPlayback.currentTime || 0;
+                videoDrehbuch.push({ id: objId, zeit: aktuelleZeit, aktion: 'bild_hinzufuegen', url: hit.full, x: x, y: y, scaleX: 0.3, scaleY: 0.3 });
+                addMarker(aktuelleZeit, objId, 'rgba(142,68,173,0.7)'); updateProtokoll(); autoSave();
+            }, { crossOrigin: 'anonymous' });
         });
-    } catch (err) { searchResults.innerHTML = '<span style="color: #e74c3c;">Fehler bei der Suche!</span>'; }
+        searchResults.appendChild(img);
+    });
 });
 
 dropZone.addEventListener('dragover', (e) => { e.preventDefault(); });
 dropZone.addEventListener('drop', (e) => {
-    e.preventDefault(); autoPause();
-    const bildUrl = e.dataTransfer.getData('bildUrl');
+    e.preventDefault();
+    if (!fertigeAudioDatei) return alert("Bitte zuerst Audio aufnehmen/hochladen!");
+    autoPause(); const bildUrl = e.dataTransfer.getData('bildUrl');
     if (bildUrl) {
         const rect = dropZone.getBoundingClientRect();
         const x = e.clientX - rect.left; const y = e.clientY - rect.top;
@@ -231,13 +326,13 @@ dropZone.addEventListener('drop', (e) => {
             fabricImg.myId = objId; canvas.add(fabricImg); canvas.setActiveObject(fabricImg);
             const aktuelleZeit = audioPlayback.currentTime || 0;
             videoDrehbuch.push({ id: objId, zeit: aktuelleZeit, aktion: 'bild_hinzufuegen', url: bildUrl, x: x - (fabricImg.width * 0.3) / 2, y: y - (fabricImg.height * 0.3) / 2, scaleX: 0.3, scaleY: 0.3 });
-            addMarker(aktuelleZeit, objId, 'rgba(142,68,173,0.7)');
-            updateProtokoll(); // <--- NEU
+            addMarker(aktuelleZeit, objId, 'rgba(142,68,173,0.7)'); updateProtokoll(); autoSave();
         }, { crossOrigin: 'anonymous' });
     }
 });
 
-// --- TEIL 5: TIMELINE & ZEITMASCHINE ---
+
+// --- TEIL 7: TIMELINE & ZEITMASCHINE ---
 const timelineContainer = document.getElementById('timeline-container');
 const playhead = document.getElementById('playhead');
 const markersContainer = document.getElementById('markers');
@@ -291,7 +386,7 @@ function rekonstruiereLeinwand(zielZeit) {
 }
 
 
-// --- TEIL 6: VORSCHAU-SYSTEM MIT SCHUTZSCHILD ---
+// --- TEIL 8: VORSCHAU-SYSTEM ---
 const previewBtn = document.getElementById('previewBtn');
 let previewDrehbuch = [];
 
@@ -299,6 +394,9 @@ function togglePreview() {
     if (!fertigeAudioDatei) return;
 
     if (audioPlayback.paused) {
+        if (audioPlayback.currentTime >= audioPlayback.duration) { audioPlayback.currentTime = 0; }
+
+        rekonstruiereLeinwand(audioPlayback.currentTime);
         canvas.discardActiveObject();
         canvas.forEachObject(obj => { obj.selectable = false; obj.evented = false; });
         canvas.requestRenderAll();
@@ -351,7 +449,7 @@ audioPlayback.addEventListener('ended', () => {
 });
 
 
-// --- TEIL 7: VIDEO RENDERER ---
+// --- TEIL 9: VIDEO RENDERER ---
 document.getElementById('exportBtn').addEventListener('click', async () => {
     if (!fertigeAudioDatei) { alert("Bitte nimm zuerst eine Tonspur auf!"); return; }
     if (!audioPlayback.paused) togglePreview();
