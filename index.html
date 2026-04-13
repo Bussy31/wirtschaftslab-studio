@@ -151,6 +151,43 @@
             color: #7f8c8d;
             border-top: 1px solid #ddd;
         }
+
+        /* --- Export Overlay Design --- */
+        #exportOverlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.9); /* Dunkles Blau-Schwarz */
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            backdrop-filter: blur(5px);
+        }
+
+        .export-content {
+            text-align: center;
+            background: #1e293b;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            border: 1px solid #334155;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #334155;
+            border-top: 5px solid #8e44ad;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
         #markers { width: 100%; height: 100%; position: absolute; pointer-events: none; }
 
         #audioPlayback { display: none; }
@@ -221,6 +258,16 @@
             </ul>
         </div>
 
+    </div>
+
+    <div id="exportOverlay" style="display: none;">
+        <div class="export-content">
+            <div class="spinner"></div>
+            <h2>🎬 Video wird erstellt...</h2>
+            <p>Bitte diesen Tab <strong>nicht schließen</strong> oder wechseln.</p>
+            <p><small>Das Tool zeichnet dein Video gerade live im Hintergrund auf.<br>
+            Dauer: <span id="exportProgress">0:00</span> / <span id="exportTotal">0:00</span></p></small>
+        </div>
     </div>
 
     <script src="app.js"></script>
