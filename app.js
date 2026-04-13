@@ -45,22 +45,36 @@ function updateProtocol() {
     const list = document.getElementById('protocolList');
     if (!list) return;
 
-    // Das hier ist wichtig: Liste komplett leeren vor dem Neuaufbau!
+    // 1. Liste leeren
     list.innerHTML = "";
 
-    if (videoDrehbuch.length === 0) {
+    // 2. Falls leer, Hinweistext zeigen
+    if (!videoDrehbuch || videoDrehbuch.length === 0) {
         list.innerHTML = '<li style="justify-content: center; color: #999; font-style: italic;">Noch keine Aktionen...</li>';
         return;
     }
 
+    // 3. Jede Aktion aus dem Drehbuch hinzufügen
     videoDrehbuch.forEach(aktion => {
         const li = document.createElement('li');
-        // ... hier wird der Inhalt des LIs erstellt ...
-        // Hier sicherstellen, dass das onclick wieder dabei ist:
+
+        // Icon bestimmen
+        let icon = aktion.aktion === 'bild_hinzufuegen' ? '🖼️' : '✍️';
+        if (aktion.aktion === 'alles_wischen') icon = '🧹';
+
         li.innerHTML = `
-            <span>${aktion.aktion === 'bild_hinzufuegen' ? '🖼️ Bild' : '✍️ Text'}</span>
-            <span class="time-badge" onclick="aendereZeit('${aktion.id}')">${aktion.zeit.toFixed(1)}s ✏️</span>
-            <button class="delete-action-btn" onclick="deleteAktion('${aktion.id}')">🗑️</button>
+            <span style="display: flex; align-items: center; gap: 5px;">
+                ${icon} <small>${aktion.aktion.replace('_', ' ')}</small>
+            </span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="time-badge" 
+                      onclick="aendereZeit('${aktion.id}')" 
+                      title="Zeit ändern" 
+                      style="cursor: pointer; background: #eee; padding: 2px 5px; border-radius: 4px; font-weight: bold;">
+                    ${aktion.zeit.toFixed(1)}s ✏️
+                </span>
+                <button class="delete-action-btn" onclick="deleteAktion('${aktion.id}')" style="background:none; border:none; color:red; cursor:pointer;">🗑️</button>
+            </div>
         `;
         list.appendChild(li);
     });
@@ -357,42 +371,38 @@ const markersContainer = document.getElementById('markers');
 
 // --- NEU: Zeit im Protokoll nachträglich ändern ---
 function aendereZeit(id) {
+    // Aktion finden
     const aktion = videoDrehbuch.find(a => a.id === id);
     if (!aktion) return;
 
     const aktuelleZeit = aktion.zeit.toFixed(1);
-    let eingabe = prompt(`Neue Zeit für "${aktion.aktion}" (Sekunden):`, aktuelleZeit);
+    let eingabe = prompt(`Neue Zeit für diese Aktion (Sekunden):`, aktuelleZeit);
 
     if (eingabe === null || eingabe.trim() === '') return;
 
     const neueZeit = parseFloat(eingabe.replace(',', '.'));
 
     if (isNaN(neueZeit) || neueZeit < 0) {
-        alert("Bitte eine gültige Zahl eingeben!");
+        alert("Ungültige Zeit!");
         return;
     }
 
-    // Zeit ändern
+    // Wert ändern & Sortieren (WICHTIG!)
     aktion.zeit = neueZeit;
-
-    // WICHTIG: Das Drehbuch MUSS neu sortiert werden, damit der Video-Export
-    // und die Liste die richtige Reihenfolge haben
     videoDrehbuch.sort((a, b) => a.zeit - b.zeit);
 
-    // 1. In der Datenbank speichern
+    // Alles aktualisieren
     autoSave();
+    updateProtocol(); // Liste neu zeichnen
 
-    // 2. Die Liste im "Regie-Protokoll" neu aufbauen
-    updateProtocol();
-
-    // 3. Die kleinen Striche (Marker) in der Zeitleiste neu zeichnen
-    if (typeof zeichneMarkers === "function") {
+    // Timeline-Marker neu zeichnen (falls vorhanden)
+    if (typeof updateTimelineMarkers === "function") {
+        updateTimelineMarkers();
+    } else if (typeof zeichneMarkers === "function") {
         zeichneMarkers();
-    } else if (typeof updateTimeline === "function") {
-        updateTimeline();
     }
 
-    console.log("Zeit aktualisiert auf:", neueZeit);
+    console.log("Zeit auf " + neueZeit + "s geändert.");
 }
 
 function addMarker(zeit, id, color) {
