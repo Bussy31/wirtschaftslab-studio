@@ -41,33 +41,28 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 // --- TEIL 1: PROTOKOLL & TIMELINE NEU ZEICHNEN ---
-function updateProtokoll() {
-    const protocolList = document.getElementById('protocolList');
-    protocolList.innerHTML = '';
+function updateProtocol() {
+    const list = document.getElementById('protocolList');
+    if (!list) return;
+
+    // Das hier ist wichtig: Liste komplett leeren vor dem Neuaufbau!
+    list.innerHTML = "";
 
     if (videoDrehbuch.length === 0) {
-        protocolList.innerHTML = '<li style="justify-content: center; color: #999; font-style: italic;">Noch keine Aktionen...</li>';
+        list.innerHTML = '<li style="justify-content: center; color: #999; font-style: italic;">Noch keine Aktionen...</li>';
         return;
     }
 
-    const sortiertesDrehbuch = [...videoDrehbuch].sort((a, b) => a.zeit - b.zeit);
-
-    sortiertesDrehbuch.forEach(aktion => {
+    videoDrehbuch.forEach(aktion => {
         const li = document.createElement('li');
-        let titel = ''; let icon = '';
-
-        if (aktion.aktion === 'bild_hinzufuegen') { titel = 'Bild platziert'; icon = '🖼️'; }
-        else if (aktion.aktion === 'text_hinzufuegen') { titel = 'Text: ' + (aktion.text.substring(0,8) + '...'); icon = '✍️'; }
-        else if (aktion.aktion === 'alles_wischen') { titel = 'Alles wischen'; icon = '🧹'; }
-
+        // ... hier wird der Inhalt des LIs erstellt ...
+        // Hier sicherstellen, dass das onclick wieder dabei ist:
         li.innerHTML = `
-            <div>
-                <span>${icon} ${titel}</span>
-                <span class="time-badge" style="cursor: pointer; border: 1px solid #ccc;" onclick="aendereZeit('${aktion.id}')" title="Klicken, um die Zeit zu ändern">${aktion.zeit.toFixed(1)}s ✏️</span>\`
-            </div>
-            <button class="delete-action-btn" title="Aktion löschen" onclick="loescheAktionManuell('${aktion.id}')">❌</button>
+            <span>${aktion.aktion === 'bild_hinzufuegen' ? '🖼️ Bild' : '✍️ Text'}</span>
+            <span class="time-badge" onclick="aendereZeit('${aktion.id}')">${aktion.zeit.toFixed(1)}s ✏️</span>
+            <button class="delete-action-btn" onclick="deleteAktion('${aktion.id}')">🗑️</button>
         `;
-        protocolList.appendChild(li);
+        list.appendChild(li);
     });
 }
 
@@ -360,26 +355,44 @@ const timelineContainer = document.getElementById('timeline-container');
 const playhead = document.getElementById('playhead');
 const markersContainer = document.getElementById('markers');
 
-// --- NEU: Zeit im Protokoll nachträglich ändern ---
 function aendereZeit(id) {
-    // 1. Aktion im Drehbuch suchen
     const aktion = videoDrehbuch.find(a => a.id === id);
     if (!aktion) return;
 
-    // 2. Nutzer nach der neuen Zeit fragen (Komma wird zu Punkt für JS)
     const aktuelleZeit = aktion.zeit.toFixed(1);
-    let eingabe = prompt(`Wann soll diese Aktion passieren?\nGib die neue Zeit in Sekunden ein (z.B. 12.5):`, aktuelleZeit);
+    let eingabe = prompt(`Neue Zeit für "${aktion.aktion}" (Sekunden):`, aktuelleZeit);
 
-    // 3. Wenn abgebrochen wurde oder leer ist, nichts tun
     if (eingabe === null || eingabe.trim() === '') return;
 
-    // 4. Eingabe in eine echte Zahl umwandeln
     const neueZeit = parseFloat(eingabe.replace(',', '.'));
 
     if (isNaN(neueZeit) || neueZeit < 0) {
-        alert("Bitte eine gültige Zahl eingeben (z.B. 15.5)!");
+        alert("Bitte eine gültige Zahl eingeben!");
         return;
     }
+
+    // Zeit ändern
+    aktion.zeit = neueZeit;
+
+    // WICHTIG: Das Drehbuch MUSS neu sortiert werden, damit der Video-Export
+    // und die Liste die richtige Reihenfolge haben
+    videoDrehbuch.sort((a, b) => a.zeit - b.zeit);
+
+    // 1. In der Datenbank speichern
+    autoSave();
+
+    // 2. Die Liste im "Regie-Protokoll" neu aufbauen
+    updateProtocol();
+
+    // 3. Die kleinen Striche (Marker) in der Zeitleiste neu zeichnen
+    if (typeof zeichneMarkers === "function") {
+        zeichneMarkers();
+    } else if (typeof updateTimeline === "function") {
+        updateTimeline();
+    }
+
+    console.log("Zeit aktualisiert auf:", neueZeit);
+}
 
     // 5. Zeit aktualisieren und das Drehbuch wieder chronologisch sortieren
     aktion.zeit = neueZeit;
