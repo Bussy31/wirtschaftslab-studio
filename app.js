@@ -15,7 +15,7 @@ function autoSave() {
     }).catch(err => console.log("Auto-Save Fehler:", err));
 }
 
-// Prüft beim Start, ob ein Absturz/Reload passiert ist
+/// Prüft beim Start, ob ein Absturz/Reload passiert ist
 window.addEventListener('DOMContentLoaded', async () => {
     try {
         const savedData = await localforage.getItem('legeVideoProject');
@@ -26,6 +26,10 @@ window.addEventListener('DOMContentLoaded', async () => {
                     fertigeAudioDatei = savedData.audioBlob;
                     audioPlayback.src = URL.createObjectURL(fertigeAudioDatei);
                     actionButtons.style.display = 'flex';
+
+                    // NEU: Zwingt den Browser, die Striche nachzuladen, sobald das Audio sicher bereit ist
+                    setTimeout(zeichneTimelineNeu, 500);
+                    setTimeout(zeichneTimelineNeu, 1500);
                 }
                 updateProtokoll();
                 rekonstruiereLeinwand(0);
@@ -82,14 +86,31 @@ window.loescheAktionManuell = function(id) {
 
 function zeichneTimelineNeu() {
     const markersContainer = document.getElementById('markers');
+    if (!markersContainer) return;
     markersContainer.innerHTML = '';
-    if (!audioPlayback.duration || !isFinite(audioPlayback.duration)) return;
+
+    // Abbruch, wenn das Audio noch gar nicht geladen ist
+    if (!audioPlayback.duration || isNaN(audioPlayback.duration)) return;
+
+    let duration = audioPlayback.duration;
+
+    // FIX: Falls der Browser bei aufgenommenen Audios "Infinity" (unendlich) als Länge meldet
+    if (!isFinite(duration)) {
+        if (videoDrehbuch.length > 0) {
+            // Wir nehmen einfach die Zeit des allerletzten Bildes + 3 Sekunden als Notfall-Länge
+            const letzterEintrag = [...videoDrehbuch].sort((a, b) => a.zeit - b.zeit).pop();
+            duration = letzterEintrag.zeit + 3;
+        } else {
+            return; // Noch keine Bilder da
+        }
+    }
 
     videoDrehbuch.forEach(aktion => {
         let color = aktion.aktion === 'alles_wischen' ? 'var(--warning)' : 'rgba(142,68,173,0.7)';
         const marker = document.createElement('div');
         marker.className = 'marker-div'; marker.dataset.id = aktion.id;
-        marker.style.position = 'absolute'; marker.style.left = (aktion.zeit / audioPlayback.duration) * 100 + "%";
+        marker.style.position = 'absolute';
+        marker.style.left = (aktion.zeit / duration) * 100 + "%";
         marker.style.width = '4px'; marker.style.height = '100%'; marker.style.backgroundColor = color;
         markersContainer.appendChild(marker);
     });
