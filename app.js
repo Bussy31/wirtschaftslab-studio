@@ -244,12 +244,32 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
 });
 
 // --- TEIL 5: ANIMIERTES WISCHEN ---
-function spieleWischAnimation(sollLeinwandGeloeschtWerden) {
+function spieleWischAnimation() {
     const wipeArm = document.getElementById('wipeArm');
-    wipeArm.style.transition = 'left 0.8s ease-in-out'; wipeArm.style.left = '0%';
-    setTimeout(() => { if (sollLeinwandGeloeschtWerden) canvas.clear(); }, 400);
-    setTimeout(() => { wipeArm.style.left = '100%'; }, 800);
-    setTimeout(() => { wipeArm.style.transition = 'none'; wipeArm.style.left = '-100%'; }, 1600);
+    if (!wipeArm) return;
+
+    // 1. Schwamm von links ins Bild fahren lassen
+    wipeArm.style.left = '0%';
+
+    // 2. Warten, bis der Schwamm in der Mitte ist, dann heimlich die Leinwand löschen
+    setTimeout(() => {
+        canvas.clear();
+
+        // 3. Schwamm weiter nach rechts aus dem Bild fahren lassen
+        wipeArm.style.left = '100%';
+
+        // 4. Nach der Animation den Schwamm unsichtbar wieder nach links setzen für das nächste Mal
+        setTimeout(() => {
+            wipeArm.style.transition = 'none'; // Kurz die Animation ausschalten...
+            wipeArm.style.left = '-120%';      // ...zum Zurücksetzen...
+
+            // ...und danach die Animation wieder einschalten
+            setTimeout(() => {
+                wipeArm.style.transition = 'left 0.7s ease-in-out';
+            }, 50);
+        }, 700); // Wartet, bis er rechts rausgefahren ist
+
+    }, 600); // Zeitpunkt, wenn der Schwamm das Bild verdeckt hat
 }
 
 document.getElementById('clearBtn').addEventListener('click', () => {

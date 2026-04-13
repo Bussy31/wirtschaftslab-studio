@@ -88,10 +88,19 @@
         .delete-action-btn { background: none; border: none; color: var(--danger); font-size: 14px; cursor: pointer; padding: 0 5px; }
         .delete-action-btn:hover { transform: scale(1.2); }
 
+        /* --- Wischanimation (Der virtuelle Schwamm) --- */
         #wipeArm {
-            position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
-            background: url('https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Sponge-153862.svg/512px-Sponge-153862.svg.png') right center no-repeat;
-            background-size: 150px; z-index: 100; pointer-events: none;
+            position: absolute;
+            top: 0;
+            left: -120%; /* Startet unsichtbar links außerhalb */
+            width: 120%; /* Etwas breiter als das Bild */
+            height: 100%;
+            /* Der lila Schwammkopf + die weiße "saubere" Fläche dahinter */
+            background: linear-gradient(to right, var(--bg) 0%, var(--bg) 95%, #8e44ad 95%, #6d28d9 100%);
+            box-shadow: 10px 0 20px rgba(0,0,0,0.3);
+            z-index: 100; /* Legt sich über alles andere */
+            transition: left 0.7s ease-in-out; /* Die Dauer der Wischbewegung */
+            pointer-events: none; /* Blockiert keine Mausklicks */
         }
 
         /* --- Professioneller Audio-Timeline Look --- */
