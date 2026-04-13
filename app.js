@@ -63,7 +63,7 @@ function updateProtokoll() {
         li.innerHTML = `
             <div>
                 <span>${icon} ${titel}</span>
-                <span class="time-badge">${aktion.zeit.toFixed(1)}s</span>
+                <span class="time-badge" style="cursor: pointer; border: 1px solid #ccc;" onclick="aendereZeit('${aktion.id}')" title="Klicken, um die Zeit zu ändern">${aktion.zeit.toFixed(1)}s ✏️</span>\`
             </div>
             <button class="delete-action-btn" title="Aktion löschen" onclick="loescheAktionManuell('${aktion.id}')">❌</button>
         `;
@@ -355,10 +355,43 @@ dropZone.addEventListener('drop', (e) => {
 });
 
 
-// --- TEIL 7: TIMELINE & ZEITMASCHINE ---
+// --- TEIL 7: TIMELINE & xMASCHINE ---
 const timelineContainer = document.getElementById('timeline-container');
 const playhead = document.getElementById('playhead');
 const markersContainer = document.getElementById('markers');
+
+// --- NEU: Zeit im Protokoll nachträglich ändern ---
+function aendereZeit(id) {
+    // 1. Aktion im Drehbuch suchen
+    const aktion = videoDrehbuch.find(a => a.id === id);
+    if (!aktion) return;
+
+    // 2. Nutzer nach der neuen Zeit fragen (Komma wird zu Punkt für JS)
+    const aktuelleZeit = aktion.zeit.toFixed(1);
+    let eingabe = prompt(`Wann soll diese Aktion passieren?\nGib die neue Zeit in Sekunden ein (z.B. 12.5):`, aktuelleZeit);
+
+    // 3. Wenn abgebrochen wurde oder leer ist, nichts tun
+    if (eingabe === null || eingabe.trim() === '') return;
+
+    // 4. Eingabe in eine echte Zahl umwandeln
+    const neueZeit = parseFloat(eingabe.replace(',', '.'));
+
+    if (isNaN(neueZeit) || neueZeit < 0) {
+        alert("Bitte eine gültige Zahl eingeben (z.B. 15.5)!");
+        return;
+    }
+
+    // 5. Zeit aktualisieren und das Drehbuch wieder chronologisch sortieren
+    aktion.zeit = neueZeit;
+    videoDrehbuch.sort((a, b) => a.zeit - b.zeit);
+
+    // 6. Alles speichern und die Ansichten neu laden
+    autoSave();
+
+    // HINWEIS: Falls deine Funktionen anders heißen, hier die Namen anpassen!
+    if (typeof updateProtocol === "function") updateProtocol();
+    if (typeof updateTimeline === "function") updateTimeline(); // oder zeichneTimeline(), je nachdem wie es bei dir heißt
+}
 
 function addMarker(zeit, id, color) {
     if (audioPlayback.duration) {
