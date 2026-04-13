@@ -473,50 +473,59 @@ audioPlayback.addEventListener('ended', () => {
 
 
 // --- TEIL 9: VIDEO RENDERER ---
-// --- ÜBERARBEITETE EXPORT-LOGIK MIT LADEBILDSCHIRM ---
-document.getElementById('exportBtn').addEventListener('click', () => {
-    if (!fertigeAudioDatei) return alert("Bitte zuerst Audio aufnehmen!");
+document.getElementById('exportBtn').addEventListener('click', async () => {
+    if (!fertigeAudioDatei) { alert("Bitte nimm zuerst eine Tonspur auf!"); return; }
+    if (!audioPlayback.paused) togglePreview();
 
     const overlay = document.getElementById('exportOverlay');
     const progressEl = document.getElementById('exportProgress');
     const totalEl = document.getElementById('exportTotal');
 
-    // 1. Overlay anzeigen
-    overlay.style.display = 'flex';
+    // 1. Overlay einblenden
+    if (overlay) overlay.style.display = 'flex';
 
-    const stream = canvas.captureStream(30);
-    const audioCtx = new AudioContext();
-    const source = audioCtx.createMediaStreamSource(audioPlayback.captureStream());
-    const dest = audioCtx.createMediaStreamDestination();
-    source.connect(dest);
-    stream.addTrack(dest.stream.getAudioTracks()[0]);
-
-    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9,opus' });
-    const chunks = [];
-    const renderAudio = new Audio(URL.createObjectURL(fertigeAudioDatei));
-    const drehbuchKopie = [...videoDrehbuch].sort((a, b) => a.zeit - b.zeit);
+    // WICHTIGER FIX: Zwingt den Browser 50ms zu warten, damit er den Ladebildschirm
+    // auch wirklich auf den Monitor zeichnet, bevor die schwere Video-Berechnung startet!
+    await new Promise(resolve => setTimeout(resolve, 50));
 
     canvas.clear();
-    renderAudio.play();
+    let drehbuchKopie = JSON.parse(JSON.stringify(videoDrehbuch));
+    drehbuchKopie.sort((a, b) => a.zeit - b.zeit);
+
+    const htmlCanvas = document.getElementById('fabricCanvas');
+    canvas.requestRenderAll();
+
+    const canvasStream = htmlCanvas.captureStream(30);
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const dest = audioCtx.createMediaStreamDestination();
+    const renderAudio = new Audio(URL.createObjectURL(fertigeAudioDatei));
+    const source = audioCtx.createMediaElementSource(renderAudio);
+    source.connect(dest);
+
+    const combinedStream = new MediaStream([ ...canvasStream.getVideoTracks(), ...dest.stream.getAudioTracks() ]);
+    let options = { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 8000000 };
+    if (!MediaRecorder.isTypeSupported(options.mimeType)) { options = { mimeType: 'video/webm', videoBitsPerSecond: 5000000 }; }
+
+    const recorder = new MediaRecorder(combinedStream, options);
+    let recordedChunks = [];
+    recorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+
+    const forceFrameInterval = setInterval(() => { canvas.requestRenderAll(); }, 1000 / 30);
 
     // Gesamtzeit im Overlay anzeigen
     renderAudio.onloadedmetadata = () => {
         const totalMin = Math.floor(renderAudio.duration / 60);
         const totalSec = Math.floor(renderAudio.duration % 60).toString().padStart(2, '0');
-        totalEl.innerText = `${totalMin}:${totalSec}`;
+        if(totalEl) totalEl.innerText = `${totalMin}:${totalSec}`;
     };
 
-    recorder.ondataavailable = e => chunks.push(e.data);
-
     recorder.onstop = () => {
-        // Overlay wieder verstecken, wenn fertig
-        overlay.style.display = 'none';
+        clearInterval(forceFrameInterval);
+        // Overlay ausblenden, wenn fertig
+        if (overlay) overlay.style.display = 'none';
 
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'mein_legevideo.webm';
-        a.click();
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mein_legevideo.webm'; a.click();
     };
 
     recorder.start();
@@ -525,12 +534,15 @@ document.getElementById('exportBtn').addEventListener('click', () => {
         const currentTime = renderAudio.currentTime;
 
         // Fortschritt im Overlay aktualisieren
-        const curMin = Math.floor(currentTime / 60);
-        const curSec = Math.floor(currentTime % 60).toString().padStart(2, '0');
-        progressEl.innerText = `${curMin}:${curSec}`;
+        if (progressEl) {
+            const curMin = Math.floor(currentTime / 60);
+            const curSec = Math.floor(currentTime % 60).toString().padStart(2, '0');
+            progressEl.innerText = `${curMin}:${curSec}`;
+        }
 
+        let changeDetected = false;
         while (drehbuchKopie.length > 0 && drehbuchKopie[0].zeit <= currentTime) {
-            const aktion = drehbuchKopie.shift();
+            const aktion = drehbuchKopie.shift(); changeDetected = true;
             if (aktion.aktion === 'bild_hinzufuegen') {
                 fabric.Image.fromURL(aktion.url, function(img) {
                     img.set({ left: aktion.x, top: aktion.y, scaleX: aktion.scaleX || 0.3, scaleY: aktion.scaleY || 0.3, selectable: false, evented: false });
@@ -539,16 +551,13 @@ document.getElementById('exportBtn').addEventListener('click', () => {
             }
             else if (aktion.aktion === 'text_hinzufuegen') {
                 const text = new fabric.IText(aktion.text, { left: aktion.x, top: aktion.y, fontFamily: 'Comic Sans MS, Arial', fill: '#333333', fontSize: 35, fontWeight: 'bold', selectable: false, evented: false });
-                text.scaleX = aktion.scaleX || 1; text.scaleY = aktion.scaleY || 1;
-                canvas.add(text);
+                text.scaleX = aktion.scaleX || 1; text.scaleY = aktion.scaleY || 1; canvas.add(text);
             }
-            else if (aktion.aktion === 'alles_wischen') {
-                spieleWischAnimation();
-            }
+            else if (aktion.aktion === 'alles_wischen') { spieleWischAnimation(true); }
         }
+        if (changeDetected) canvas.requestRenderAll();
     });
 
-    renderAudio.onended = () => {
-        setTimeout(() => recorder.stop(), 500);
-    };
+    renderAudio.play();
+    renderAudio.onended = () => { recorder.stop(); audioCtx.close(); };
 });
