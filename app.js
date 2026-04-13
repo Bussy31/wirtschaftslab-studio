@@ -45,24 +45,23 @@ function updateProtokoll() {
     const list = document.getElementById('protocolList');
     if (!list) return;
 
-    // 1. Liste leeren
     list.innerHTML = "";
 
-    // 2. Falls leer, Hinweistext zeigen
     if (!videoDrehbuch || videoDrehbuch.length === 0) {
         list.innerHTML = '<li style="justify-content: center; color: #999; font-style: italic;">Noch keine Aktionen...</li>';
         return;
     }
 
-    // 3. Jede Aktion aus dem Drehbuch hinzufügen
     videoDrehbuch.forEach(aktion => {
         const li = document.createElement('li');
 
-        // Icon bestimmen
         let icon = aktion.aktion === 'bild_hinzufuegen' ? '🖼️' : '✍️';
         if (aktion.aktion === 'alles_wischen') icon = '🧹';
 
         let aktionsName = aktion.aktion.replace('_', ' ');
+
+        // HIER NEU: Punkt in Komma verwandeln für die deutsche Anzeige
+        let anzeigeZeit = aktion.zeit.toFixed(1).replace('.', ',');
 
         li.innerHTML = `
             <span style="display: flex; align-items: center; gap: 5px;">
@@ -73,7 +72,7 @@ function updateProtokoll() {
                       onclick="aendereZeit('${aktion.id}')" 
                       title="Zeit ändern" 
                       style="cursor: pointer; background: #eee; padding: 2px 5px; border-radius: 4px; font-weight: bold;">
-                    ${aktion.zeit.toFixed(1)}s ✏️
+                    ${anzeigeZeit}s ✏️
                 </span>
                 <button class="delete-action-btn" onclick="loescheAktionManuell('${aktion.id}')" style="background:none; border:none; color:red; cursor:pointer;">🗑️</button>
             </div>
@@ -373,35 +372,32 @@ const markersContainer = document.getElementById('markers');
 
 // --- NEU: Zeit im Protokoll nachträglich ändern ---
 function aendereZeit(id) {
-    // Aktion finden
     const aktion = videoDrehbuch.find(a => a.id === id);
     if (!aktion) return;
 
-    const aktuelleZeit = aktion.zeit.toFixed(1);
+    // HIER NEU: Vorgabewert mit Komma statt Punkt anzeigen
+    const aktuelleZeit = aktion.zeit.toFixed(1).replace('.', ',');
     let eingabe = prompt(`Neue Zeit für diese Aktion (Sekunden):`, aktuelleZeit);
 
     if (eingabe === null || eingabe.trim() === '') return;
 
+    // Das Programm macht das Komma im Hintergrund wieder zum Rechen-Punkt
     const neueZeit = parseFloat(eingabe.replace(',', '.'));
 
     if (isNaN(neueZeit) || neueZeit < 0) {
-        alert("Ungültige Zeit!");
+        alert("Ungültige Zeit! Bitte z.B. 4,5 eingeben.");
         return;
     }
 
-    // Wert ändern & Sortieren (WICHTIG!)
     aktion.zeit = neueZeit;
     videoDrehbuch.sort((a, b) => a.zeit - b.zeit);
 
-    // Alles aktualisieren mit den exakt richtigen Funktionsnamen aus deiner app.js
     autoSave();
-    updateProtokoll(); // Liste neu zeichnen
+    updateProtokoll();
 
     if (typeof zeichneTimelineNeu === "function") {
-        zeichneTimelineNeu(); // Striche unten anpassen
+        zeichneTimelineNeu();
     }
-
-    console.log("Zeit auf " + neueZeit + "s geändert.");
 }
 
 function addMarker(zeit, id, color) {
