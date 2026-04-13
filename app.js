@@ -89,6 +89,7 @@ function zeichneTimelineNeu() {
     if (!markersContainer) return;
     markersContainer.innerHTML = '';
 
+    // Abbruch, wenn das Audio noch gar nicht geladen ist
     if (!audioPlayback.duration || isNaN(audioPlayback.duration)) return;
 
     let duration = audioPlayback.duration;
@@ -105,15 +106,12 @@ function zeichneTimelineNeu() {
     }
 
     videoDrehbuch.forEach(aktion => {
-        // Farben für dunklen Hintergrund optimiert:
-        let color = aktion.aktion === 'alles_wischen' ? '#ffa502' : '#2ed573'; // Orange für Wischen, Neongrün für Bilder
-
+        let color = aktion.aktion === 'alles_wischen' ? 'var(--warning)' : 'rgba(142,68,173,0.7)';
         const marker = document.createElement('div');
-        marker.className = 'marker-div';
-        marker.dataset.id = aktion.id;
+        marker.className = 'marker-div'; marker.dataset.id = aktion.id;
         marker.style.position = 'absolute';
         marker.style.left = (aktion.zeit / duration) * 100 + "%";
-        marker.style.backgroundColor = color;
+        marker.style.width = '4px'; marker.style.height = '100%'; marker.style.backgroundColor = color;
         markersContainer.appendChild(marker);
     });
 }
@@ -244,24 +242,12 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
 });
 
 // --- TEIL 5: ANIMIERTES WISCHEN ---
-function spieleWischAnimation() {
-    const sponge = document.getElementById('sponge-container');
-    if (!sponge) return;
-
-    // Animation hart zurücksetzen (Reflow), damit sie auch bei mehrmaligem Klicken immer feuert
-    sponge.classList.remove('animate-wipe');
-    void sponge.offsetWidth; // Zwingt den Browser zum Neuladen der Animation
-    sponge.classList.add('animate-wipe');
-
-    // TIMING: Wenn der Schwamm in der Mitte ist, die Leinwand löschen
-    setTimeout(() => {
-        canvas.clear();
-    }, 500);
-
-    // Nach der Animation aufräumen
-    setTimeout(() => {
-        sponge.classList.remove('animate-wipe');
-    }, 1000);
+function spieleWischAnimation(sollLeinwandGeloeschtWerden) {
+    const wipeArm = document.getElementById('wipeArm');
+    wipeArm.style.transition = 'left 0.8s ease-in-out'; wipeArm.style.left = '0%';
+    setTimeout(() => { if (sollLeinwandGeloeschtWerden) canvas.clear(); }, 400);
+    setTimeout(() => { wipeArm.style.left = '100%'; }, 800);
+    setTimeout(() => { wipeArm.style.transition = 'none'; wipeArm.style.left = '-100%'; }, 1600);
 }
 
 document.getElementById('clearBtn').addEventListener('click', () => {
@@ -373,8 +359,12 @@ const playhead = document.getElementById('playhead');
 const markersContainer = document.getElementById('markers');
 
 function addMarker(zeit, id, color) {
-    // Zwingt die Timeline, alle Marker fehlerfrei und in den richtigen Farben neu zu laden
-    zeichneTimelineNeu();
+    if (audioPlayback.duration) {
+        const marker = document.createElement('div'); marker.className = 'marker-div'; marker.dataset.id = id;
+        marker.style.position = 'absolute'; marker.style.left = (zeit / audioPlayback.duration) * 100 + "%";
+        marker.style.width = '4px'; marker.style.height = '100%'; marker.style.backgroundColor = color;
+        markersContainer.appendChild(marker);
+    }
 }
 
 timelineContainer.addEventListener('click', (e) => {
