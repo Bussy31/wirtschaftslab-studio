@@ -244,12 +244,22 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
 });
 
 // --- TEIL 5: ANIMIERTES WISCHEN ---
-function spieleWischAnimation(sollLeinwandGeloeschtWerden) {
-    const wipeArm = document.getElementById('wipeArm');
-    wipeArm.style.transition = 'left 0.8s ease-in-out'; wipeArm.style.left = '0%';
-    setTimeout(() => { if (sollLeinwandGeloeschtWerden) canvas.clear(); }, 400);
-    setTimeout(() => { wipeArm.style.left = '100%'; }, 800);
-    setTimeout(() => { wipeArm.style.transition = 'none'; wipeArm.style.left = '-100%'; }, 1600);
+function spieleWischAnimation() {
+    const sponge = document.getElementById('sponge-container');
+    if (!sponge) return;
+
+    // 1. Die Animations-Klasse hinzufügen
+    sponge.classList.add('animate-wipe');
+
+    // 2. TIMING: Wenn der Schwamm in der Mitte ist, die Leinwand löschen
+    setTimeout(() => {
+        canvas.clear();
+    }, 500); // 0.5 Sekunden, das ist genau die Mitte der 1s Animation
+
+    // 3. Nach der Animation die Klasse wieder entfernen (für das nächste Mal)
+    setTimeout(() => {
+        sponge.classList.remove('animate-wipe');
+    }, 1000); // Wartet, bis die Animation vorbei ist
 }
 
 document.getElementById('clearBtn').addEventListener('click', () => {
