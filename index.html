@@ -68,6 +68,22 @@
             border: 1px dashed #ccc; background: #fff; border-radius: 5px;
         }
 
+        .protocol-list .time-badge {
+            background: #e0e0e0;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-family: monospace;
+            cursor: pointer; /* Zeigt die Hand als Mauszeiger */
+            transition: all 0.2s;
+        }
+
+        .protocol-list .time-badge:hover {
+            background: var(--primary); /* Wird lila beim Drüberfahren */
+            color: white;
+            transform: scale(1.05);
+        }
+
         .studio-layout { display: flex; justify-content: center; gap: 20px; max-width: 1200px; margin: 0 auto; align-items: flex-start; }
         .main-column { display: flex; flex-direction: column; width: 800px; flex-shrink: 0; align-items: center; gap: 15px; }
 
