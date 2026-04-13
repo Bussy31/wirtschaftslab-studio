@@ -89,7 +89,6 @@ function zeichneTimelineNeu() {
     if (!markersContainer) return;
     markersContainer.innerHTML = '';
 
-    // Abbruch, wenn das Audio noch gar nicht geladen ist
     if (!audioPlayback.duration || isNaN(audioPlayback.duration)) return;
 
     let duration = audioPlayback.duration;
@@ -106,12 +105,15 @@ function zeichneTimelineNeu() {
     }
 
     videoDrehbuch.forEach(aktion => {
-        let color = aktion.aktion === 'alles_wischen' ? 'var(--warning)' : 'rgba(142,68,173,0.7)';
+        // Farben für dunklen Hintergrund optimiert:
+        let color = aktion.aktion === 'alles_wischen' ? '#ffa502' : '#2ed573'; // Orange für Wischen, Neongrün für Bilder
+
         const marker = document.createElement('div');
-        marker.className = 'marker-div'; marker.dataset.id = aktion.id;
+        marker.className = 'marker-div';
+        marker.dataset.id = aktion.id;
         marker.style.position = 'absolute';
         marker.style.left = (aktion.zeit / duration) * 100 + "%";
-        marker.style.width = '4px'; marker.style.height = '100%'; marker.style.backgroundColor = color;
+        marker.style.backgroundColor = color;
         markersContainer.appendChild(marker);
     });
 }
