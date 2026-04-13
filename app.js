@@ -355,6 +355,7 @@ const timelineContainer = document.getElementById('timeline-container');
 const playhead = document.getElementById('playhead');
 const markersContainer = document.getElementById('markers');
 
+// --- NEU: Zeit im Protokoll nachträglich ändern ---
 function aendereZeit(id) {
     const aktion = videoDrehbuch.find(a => a.id === id);
     if (!aktion) return;
@@ -392,18 +393,6 @@ function aendereZeit(id) {
     }
 
     console.log("Zeit aktualisiert auf:", neueZeit);
-}
-
-    // 5. Zeit aktualisieren und das Drehbuch wieder chronologisch sortieren
-    aktion.zeit = neueZeit;
-    videoDrehbuch.sort((a, b) => a.zeit - b.zeit);
-
-    // 6. Alles speichern und die Ansichten neu laden
-    autoSave();
-
-    // HINWEIS: Falls deine Funktionen anders heißen, hier die Namen anpassen!
-    if (typeof updateProtocol === "function") updateProtocol();
-    if (typeof updateTimeline === "function") updateTimeline(); // oder zeichneTimeline(), je nachdem wie es bei dir heißt
 }
 
 function addMarker(zeit, id, color) {
