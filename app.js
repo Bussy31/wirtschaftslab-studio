@@ -1,6 +1,6 @@
 // --- API SCHLÜSSEL ---
 const PIXABAY_KEY = '55407865-e0aa3f47b82bc64c318018f21';
-const PEXELS_KEY = 'FDUpT5ntSabJvIIO72985ip5QvVULAtDTdYD3TXFQj7X5m1W74tb1Z38'; // <--- Füge deinen Pexels-Key hier zwischen die Anführungszeichen ein!
+const PEXELS_KEY = 'FDUpT5ntSabJvIIO72985ip5QvVULAtDTdYD3TXFQj7X5m1W74tb1Z38';
 
 let videoDrehbuch = [];
 let fertigeAudioDatei = null;
@@ -282,7 +282,26 @@ searchBtn.addEventListener('click', async () => {
     searchResults.innerHTML = '<i>Suche in Datenbanken läuft...</i>';
     let allResults = [];
 
-    // 1. Pixabay Abfrage (Fokus auf Vektoren, Limit 40)
+
+    // 1. Openclipart Abfrage (Ganz OHNE API-Key!)
+    try {
+        // Wir suchen englische Begriffe, da Openclipart auf Englisch am besten funktioniert
+        const openclipartUrl = `https://openclipart.org/search/json/?query=${encodeURIComponent(query)}&amount=40`;
+        const res = await fetch(openclipartUrl);
+        const data = await res.json();
+
+        if (data.payload && data.payload.length > 0) {
+            data.payload.forEach(item => {
+                allResults.push({
+                    preview: item.svg.png_thumb, // Kleines PNG für die Vorschau unten
+                    full: item.svg.url,          // Die echte SVG-Vektorgrafik für die Leinwand
+                    source: 'Openclipart'
+                });
+            });
+        }
+    } catch (err) { console.error("Openclipart Fehler", err); }
+
+    // 2. Pixabay Abfrage (Fokus auf Vektoren, Limit 40)
     try {
         const pixabayUrl = `https://pixabay.com/api/?key=${PIXABAY_KEY}&q=${encodeURIComponent(query)}&image_type=vector&per_page=40`;
         const res = await fetch(pixabayUrl);
@@ -294,7 +313,7 @@ searchBtn.addEventListener('click', async () => {
         }
     } catch (err) { console.error("Pixabay Fehler", err); }
 
-    // 2. Pexels Abfrage (Heimlich "illustration" anhängen, Limit 40)
+    // 3. Pexels Abfrage (Heimlich "illustration" anhängen, Limit 40)
     try {
         if (PEXELS_KEY !== 'HIER_DEIN_PEXELS_KEY_EINTRAGEN' && PEXELS_KEY !== '') {
             const pexelsQuery = encodeURIComponent(query + " illustration");
