@@ -102,8 +102,8 @@
             transform: translateY(-50%);
             width: 120px;
             height: 150px;
-            z-index: 100;
-            opacity: 0; /* Standardmäßig unsichtbar */
+            z-index: 9999 !important; /* WICHTIG: Zwingt den Schwamm in den absoluten Vordergrund */
+            opacity: 0;
             pointer-events: none;
         }
 

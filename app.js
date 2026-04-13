@@ -248,18 +248,20 @@ function spieleWischAnimation() {
     const sponge = document.getElementById('sponge-container');
     if (!sponge) return;
 
-    // 1. Die Animations-Klasse hinzufügen
+    // Animation hart zurücksetzen (Reflow), damit sie auch bei mehrmaligem Klicken immer feuert
+    sponge.classList.remove('animate-wipe');
+    void sponge.offsetWidth; // Zwingt den Browser zum Neuladen der Animation
     sponge.classList.add('animate-wipe');
 
-    // 2. TIMING: Wenn der Schwamm in der Mitte ist, die Leinwand löschen
+    // TIMING: Wenn der Schwamm in der Mitte ist, die Leinwand löschen
     setTimeout(() => {
         canvas.clear();
-    }, 500); // 0.5 Sekunden, das ist genau die Mitte der 1s Animation
+    }, 500);
 
-    // 3. Nach der Animation die Klasse wieder entfernen (für das nächste Mal)
+    // Nach der Animation aufräumen
     setTimeout(() => {
         sponge.classList.remove('animate-wipe');
-    }, 1000); // Wartet, bis die Animation vorbei ist
+    }, 1000);
 }
 
 document.getElementById('clearBtn').addEventListener('click', () => {
@@ -371,12 +373,8 @@ const playhead = document.getElementById('playhead');
 const markersContainer = document.getElementById('markers');
 
 function addMarker(zeit, id, color) {
-    if (audioPlayback.duration) {
-        const marker = document.createElement('div'); marker.className = 'marker-div'; marker.dataset.id = id;
-        marker.style.position = 'absolute'; marker.style.left = (zeit / audioPlayback.duration) * 100 + "%";
-        marker.style.width = '4px'; marker.style.height = '100%'; marker.style.backgroundColor = color;
-        markersContainer.appendChild(marker);
-    }
+    // Zwingt die Timeline, alle Marker fehlerfrei und in den richtigen Farben neu zu laden
+    zeichneTimelineNeu();
 }
 
 timelineContainer.addEventListener('click', (e) => {
