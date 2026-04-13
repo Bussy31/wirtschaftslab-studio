@@ -473,17 +473,29 @@ audioPlayback.addEventListener('ended', () => {
 
 
 // --- TEIL 9: VIDEO RENDERER ---
-document.getElementById('exportBtn').addEventListener('click', async () => { // <--- async ist wichtig!
+document.getElementById('exportBtn').addEventListener('click', async () => {
     if (!fertigeAudioDatei) { alert("Bitte nimm zuerst eine Tonspur auf!"); return; }
+
+    // Falls die Vorschau gerade läuft, stoppen wir sie
+    if (!audioPlayback.paused) audioPlayback.pause();
 
     const overlay = document.getElementById('exportOverlay');
     const progressEl = document.getElementById('exportProgress');
+    const totalEl = document.getElementById('exportTotal');
+
+    // WICHTIGER FIX FÜR DIE 0:00
+    // Wir holen uns die Dauer direkt aus dem Haupt-Player, der sie bereits kennt!
+    if (totalEl && audioPlayback && audioPlayback.duration) {
+        const totalMin = Math.floor(audioPlayback.duration / 60);
+        const totalSec = Math.floor(audioPlayback.duration % 60).toString().padStart(2, '0');
+        totalEl.innerText = `${totalMin}:${totalSec}`;
+    }
 
     // 1. Leiste einblenden
     if (overlay) overlay.style.display = 'block';
 
     // 2. Browser kurz Zeit geben, die Leiste zu zeichnen (50ms)
-    await new Promise(r => setTimeout(r, 50));
+    await new Promise(resolve => setTimeout(resolve, 50));
 
     canvas.clear();
     let drehbuchKopie = JSON.parse(JSON.stringify(videoDrehbuch));
@@ -495,6 +507,7 @@ document.getElementById('exportBtn').addEventListener('click', async () => { // 
     const canvasStream = htmlCanvas.captureStream(30);
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const dest = audioCtx.createMediaStreamDestination();
+
     const renderAudio = new Audio(URL.createObjectURL(fertigeAudioDatei));
     const source = audioCtx.createMediaElementSource(renderAudio);
     source.connect(dest);
@@ -509,20 +522,14 @@ document.getElementById('exportBtn').addEventListener('click', async () => { // 
 
     const forceFrameInterval = setInterval(() => { canvas.requestRenderAll(); }, 1000 / 30);
 
-    // Gesamtzeit im Overlay anzeigen
-    renderAudio.onloadedmetadata = () => {
-        const totalMin = Math.floor(renderAudio.duration / 60);
-        const totalSec = Math.floor(renderAudio.duration % 60).toString().padStart(2, '0');
-        if(totalEl) totalEl.innerText = `${totalMin}:${totalSec}`;
-    };
-
     recorder.onstop = () => {
         clearInterval(forceFrameInterval);
-        // Overlay ausblenden, wenn fertig
+        // Leiste nach dem Export wieder ausblenden
         if (overlay) overlay.style.display = 'none';
 
         const blob = new Blob(recordedChunks, { type: 'video/webm' });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mein_legevideo.webm'; a.click();
+        alert("✅ Video erfolgreich heruntergeladen!");
     };
 
     recorder.start();
@@ -530,7 +537,7 @@ document.getElementById('exportBtn').addEventListener('click', async () => { // 
     renderAudio.addEventListener('timeupdate', () => {
         const currentTime = renderAudio.currentTime;
 
-        // Fortschritt im Overlay aktualisieren
+        // Fortschritt (aktuelle Zeit) in der Leiste aktualisieren
         if (progressEl) {
             const curMin = Math.floor(currentTime / 60);
             const curSec = Math.floor(currentTime % 60).toString().padStart(2, '0');
@@ -550,7 +557,10 @@ document.getElementById('exportBtn').addEventListener('click', async () => { // 
                 const text = new fabric.IText(aktion.text, { left: aktion.x, top: aktion.y, fontFamily: 'Comic Sans MS, Arial', fill: '#333333', fontSize: 35, fontWeight: 'bold', selectable: false, evented: false });
                 text.scaleX = aktion.scaleX || 1; text.scaleY = aktion.scaleY || 1; canvas.add(text);
             }
-            else if (aktion.aktion === 'alles_wischen') { spieleWischAnimation(true); }
+            else if (aktion.aktion === 'alles_wischen') {
+                // Falls du eine Wisch-Animation hast
+                if(typeof spieleWischAnimation === 'function') spieleWischAnimation(true);
+            }
         }
         if (changeDetected) canvas.requestRenderAll();
     });
