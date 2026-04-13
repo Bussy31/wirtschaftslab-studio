@@ -473,20 +473,17 @@ audioPlayback.addEventListener('ended', () => {
 
 
 // --- TEIL 9: VIDEO RENDERER ---
-document.getElementById('exportBtn').addEventListener('click', async () => {
+document.getElementById('exportBtn').addEventListener('click', async () => { // <--- async ist wichtig!
     if (!fertigeAudioDatei) { alert("Bitte nimm zuerst eine Tonspur auf!"); return; }
-    if (!audioPlayback.paused) togglePreview();
 
     const overlay = document.getElementById('exportOverlay');
     const progressEl = document.getElementById('exportProgress');
-    const totalEl = document.getElementById('exportTotal');
 
-    // 1. Overlay einblenden
-    if (overlay) overlay.style.display = 'flex';
+    // 1. Leiste einblenden
+    if (overlay) overlay.style.display = 'block';
 
-    // WICHTIGER FIX: Zwingt den Browser 50ms zu warten, damit er den Ladebildschirm
-    // auch wirklich auf den Monitor zeichnet, bevor die schwere Video-Berechnung startet!
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // 2. Browser kurz Zeit geben, die Leiste zu zeichnen (50ms)
+    await new Promise(r => setTimeout(r, 50));
 
     canvas.clear();
     let drehbuchKopie = JSON.parse(JSON.stringify(videoDrehbuch));
