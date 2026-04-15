@@ -254,19 +254,25 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
 });
 
 // --- TEIL 5: ANIMIERTES WISCHEN ---
-function spieleWischAnimation(sollLeinwandGeloeschtWerden) {
-    const wipeArm = document.getElementById('wipeArm');
-    wipeArm.style.transition = 'left 0.8s ease-in-out'; wipeArm.style.left = '0%';
-    setTimeout(() => { if (sollLeinwandGeloeschtWerden) canvas.clear(); }, 400);
-    setTimeout(() => { wipeArm.style.left = '100%'; }, 800);
-    setTimeout(() => { wipeArm.style.transition = 'none'; wipeArm.style.left = '-100%'; }, 1600);
-}
-
+// --- TEIL 5: ALLES WISCHEN (OHNE ANIMATION - SOFORT LÖSCHEN) ---
 document.getElementById('clearBtn').addEventListener('click', () => {
-    if (!fertigeAudioDatei) return alert("Bitte zuerst Audio aufnehmen/hochladen!");
-    autoPause(); spieleWischAnimation(true); const aktuelleZeit = audioPlayback.currentTime || 0;
-    const objId = generateId(); videoDrehbuch.push({ id: objId, zeit: aktuelleZeit, aktion: 'alles_wischen' });
-    addMarker(aktuelleZeit, objId, 'var(--warning)'); updateProtokoll(); autoSave();
+    if (!fertigeAudioDatei) {
+        alert("Bitte zuerst Audio aufnehmen/hochladen!");
+        return;
+    }
+    autoPause();
+
+    // 1. Leinwand sofort knallhart leeren
+    canvas.clear();
+    canvas.requestRenderAll();
+
+    // 2. Aktion in der Zeitleiste und im Protokoll speichern
+    const aktuelleZeit = audioPlayback.currentTime || 0;
+    const objId = generateId();
+    videoDrehbuch.push({ id: objId, zeit: aktuelleZeit, aktion: 'alles_wischen' });
+    addMarker(aktuelleZeit, objId, 'var(--warning)');
+    updateProtokoll();
+    autoSave();
 });
 
 
