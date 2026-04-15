@@ -255,67 +255,18 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
 
 // --- TEIL 5: ANIMIERTES WISCHEN ---
 function spieleWischAnimation(sollLeinwandGeloeschtWerden) {
-    const w = canvas.width || 800;
-    const h = canvas.height || 450;
-
-    // 1. Wir laden DEIN lokales Bild aus dem Projektordner
-    fabric.Image.fromURL('schwamm.jpg', function(schwamm) {
-
-        // 2. Schwamm links außerhalb des Bildes platzieren
-        schwamm.set({
-            left: -200,
-            top: h / 2, // Auf halber Höhe
-            originX: 'center', originY: 'center',
-            // Falls dein Bild riesig ist, passe diese beiden Werte an (z.B. auf 0.2 für 20% Größe):
-            scaleX: 0.5, scaleY: 0.5,
-            selectable: false, evented: false
-        });
-
-        canvas.add(schwamm);
-
-        // 3. Merken, welche Bilder auf der Leinwand sind
-        const alteObjekte = canvas.getObjects().filter(o => o !== schwamm);
-
-        // 4. Den Schwamm stur von links nach rechts durchs Bild fahren lassen
-        schwamm.animate('left', w + 200, {
-            duration: 1200, // Dauert 1,2 Sekunden
-            easing: fabric.util.ease.easeInOutQuad,
-            onChange: function() {
-                // Wenn der Schwamm die Mitte passiert, löschen wir die Bilder!
-                if (schwamm.left > (w / 2) && sollLeinwandGeloeschtWerden && alteObjekte.length > 0) {
-                    alteObjekte.forEach(obj => {
-                        if (obj.canvas) canvas.remove(obj);
-                    });
-                    alteObjekte.length = 0; // Liste leeren
-                }
-                // Leinwand updaten
-                canvas.requestRenderAll();
-            },
-            onComplete: function() {
-                // Schwamm löschen, wenn er rechts unsichtbar ist
-                canvas.remove(schwamm);
-                canvas.requestRenderAll();
-            }
-        });
-
-    }); // Das fehleranfällige "crossOrigin" ist bei lokalen Dateien nicht mehr nötig!
+    const wipeArm = document.getElementById('wipeArm');
+    wipeArm.style.transition = 'left 0.8s ease-in-out'; wipeArm.style.left = '0%';
+    setTimeout(() => { if (sollLeinwandGeloeschtWerden) canvas.clear(); }, 400);
+    setTimeout(() => { wipeArm.style.left = '100%'; }, 800);
+    setTimeout(() => { wipeArm.style.transition = 'none'; wipeArm.style.left = '-100%'; }, 1600);
 }
 
 document.getElementById('clearBtn').addEventListener('click', () => {
-    if (!fertigeAudioDatei) {
-        alert("Bitte zuerst Audio aufnehmen/hochladen!");
-        return;
-    }
-    autoPause();
-
-    spieleWischAnimation(true);
-
-    const aktuelleZeit = audioPlayback.currentTime || 0;
-    const objId = generateId();
-    videoDrehbuch.push({ id: objId, zeit: aktuelleZeit, aktion: 'alles_wischen' });
-    addMarker(aktuelleZeit, objId, 'var(--warning)');
-    updateProtokoll();
-    autoSave();
+    if (!fertigeAudioDatei) return alert("Bitte zuerst Audio aufnehmen/hochladen!");
+    autoPause(); spieleWischAnimation(true); const aktuelleZeit = audioPlayback.currentTime || 0;
+    const objId = generateId(); videoDrehbuch.push({ id: objId, zeit: aktuelleZeit, aktion: 'alles_wischen' });
+    addMarker(aktuelleZeit, objId, 'var(--warning)'); updateProtokoll(); autoSave();
 });
 
 
