@@ -220,8 +220,13 @@ document.getElementById('loadProjectInput').addEventListener('change', function(
 
 
 // --- TEIL 4: CANVAS & GRÖSSEN-FIX ---
-const canvas = new fabric.Canvas('fabricCanvas', { selectionColor: 'rgba(142,68,173,0.1)', selectionLineWidth: 1 });
-canvas.on('before:render', function() { const ctx = this.getContext(); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, this.width, this.height); });
+const canvas = new fabric.Canvas('fabricCanvas', { selectionColor: 'rgba(46,213,115,0.15)', selectionLineWidth: 1 });
+
+// Profi-Tipp direkt darunter: So werden auch die kleinen Kästchen beim Anklicken der Bilder grün statt blau!
+fabric.Object.prototype.set({
+    borderColor: '#2ed573',
+    cornerColor: '#2ed573'
+});canvas.on('before:render', function() { const ctx = this.getContext(); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, this.width, this.height); });
 canvas.requestRenderAll();
 
 canvas.on('object:modified', function(e) {
