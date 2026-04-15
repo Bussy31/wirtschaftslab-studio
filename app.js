@@ -254,28 +254,27 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
 });
 
 // --- TEIL 5: ANIMIERTES WISCHEN ---
-// --- TEIL 5: ANIMIERTES WISCHEN (MIT ECHTEM SCHWAMM-BILD IN DER LEINWAND) ---
+// --- TEIL 5: ANIMIERTES WISCHEN (MIT LOKALEM BILD) ---
 function spieleWischAnimation(sollLeinwandGeloeschtWerden) {
     const w = canvas.width || 800;
     const h = canvas.height || 450;
 
-    // 1. Wir laden den Schwamm aus Wikipedia DIREKT in Fabric.js
-    const imgUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Sponge-153862.svg/512px-Sponge-153862.svg.png';
-
-    fabric.Image.fromURL(imgUrl, function(schwamm) {
+    // 1. Wir laden DEIN lokales Bild aus dem Projektordner
+    fabric.Image.fromURL('schwamm.jpg', function(schwamm) {
 
         // 2. Schwamm links außerhalb des Bildes platzieren
         schwamm.set({
             left: -200,
             top: h / 2, // Auf halber Höhe
             originX: 'center', originY: 'center',
-            scaleX: 0.6, scaleY: 0.6, // Größe etwas anpassen
+            // Falls dein Bild riesig ist, passe diese beiden Werte an (z.B. auf 0.2 für 20% Größe):
+            scaleX: 0.5, scaleY: 0.5,
             selectable: false, evented: false
         });
 
         canvas.add(schwamm);
 
-        // 3. Merken, welche Bilder auf der Leinwand sind (und gelöscht werden sollen)
+        // 3. Merken, welche Bilder auf der Leinwand sind
         const alteObjekte = canvas.getObjects().filter(o => o !== schwamm);
 
         // 4. Den Schwamm stur von links nach rechts durchs Bild fahren lassen
@@ -283,24 +282,24 @@ function spieleWischAnimation(sollLeinwandGeloeschtWerden) {
             duration: 1200, // Dauert 1,2 Sekunden
             easing: fabric.util.ease.easeInOutQuad,
             onChange: function() {
-                // Wenn der Schwamm die Mitte (w/2) passiert, wischen wir die Tafel sauber!
+                // Wenn der Schwamm die Mitte passiert, löschen wir die Bilder!
                 if (schwamm.left > (w / 2) && sollLeinwandGeloeschtWerden && alteObjekte.length > 0) {
                     alteObjekte.forEach(obj => {
                         if (obj.canvas) canvas.remove(obj);
                     });
                     alteObjekte.length = 0; // Liste leeren
                 }
-                // Leinwand aktualisieren (Zwingend für die Animation und den Video-Export!)
+                // Leinwand updaten
                 canvas.requestRenderAll();
             },
             onComplete: function() {
-                // Wenn der Schwamm rechts angekommen ist, schmeißen wir ihn weg
+                // Schwamm löschen, wenn er rechts unsichtbar ist
                 canvas.remove(schwamm);
                 canvas.requestRenderAll();
             }
         });
 
-    }, { crossOrigin: 'anonymous' }); // WICHTIG: Erlaubt den Video-Export von externen Bildern!
+    }); // Das fehleranfällige "crossOrigin" ist bei lokalen Dateien nicht mehr nötig!
 }
 
 document.getElementById('clearBtn').addEventListener('click', () => {
@@ -318,13 +317,6 @@ document.getElementById('clearBtn').addEventListener('click', () => {
     addMarker(aktuelleZeit, objId, 'var(--warning)');
     updateProtokoll();
     autoSave();
-});
-
-document.getElementById('clearBtn').addEventListener('click', () => {
-    if (!fertigeAudioDatei) return alert("Bitte zuerst Audio aufnehmen/hochladen!");
-    autoPause(); spieleWischAnimation(true); const aktuelleZeit = audioPlayback.currentTime || 0;
-    const objId = generateId(); videoDrehbuch.push({ id: objId, zeit: aktuelleZeit, aktion: 'alles_wischen' });
-    addMarker(aktuelleZeit, objId, 'var(--warning)'); updateProtokoll(); autoSave();
 });
 
 
