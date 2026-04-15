@@ -254,7 +254,6 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
 });
 
 // --- TEIL 5: ANIMIERTES WISCHEN ---
-// --- TEIL 5: ANIMIERTES WISCHEN (MIT LOKALEM BILD) ---
 function spieleWischAnimation(sollLeinwandGeloeschtWerden) {
     const w = canvas.width || 800;
     const h = canvas.height || 450;
