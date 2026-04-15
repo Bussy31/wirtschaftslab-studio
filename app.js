@@ -254,60 +254,40 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
 });
 
 // --- TEIL 5: ANIMIERTES WISCHEN ---
-// --- TEIL 5: ANIMIERTES WISCHEN (BOMBENSICHERE VERSION) ---
+// --- TEIL 5: ANIMIERTES WISCHEN (SCHEIBENWISCHER-MODUS) ---
 function spieleWischAnimation(sollLeinwandGeloeschtWerden) {
-    const w = canvas.width || 800;
-    const h = canvas.height || 450;
-
-    // 1. Schwamm auf die Leinwand legen
+    // 1. Wir bauen einen riesigen Balken, der von oben bis unten reicht
     const schwamm = new fabric.Rect({
-        left: -150,
-        top: h + 150, // Start unten links
-        width: 120, height: 120,
-        fill: '#f39c12', // Orangene Schwamm-Farbe
-        rx: 15, ry: 15, // Abgerundete Ecken
-        originX: 'center', originY: 'center',
-        selectable: false, evented: false,
-        shadow: new fabric.Shadow({ color: 'rgba(0,0,0,0.3)', blur: 10, offsetX: 5, offsetY: 5 })
+        left: -300,
+        top: 0,
+        width: 150,
+        height: 600, // Sehr hoch, damit er alles auf der Leinwand trifft
+        fill: '#f39c12',
+        originX: 'center', originY: 'top',
+        selectable: false, evented: false
     });
 
     canvas.add(schwamm);
 
-    // 2. Alle aktuell sichtbaren Objekte auf eine "Todesliste" setzen
+    // 2. Merken, was weg soll
     const alteObjekte = canvas.getObjects().filter(o => o !== schwamm);
 
-    // 3. Start- und Zielpunkte für die Diagonale festlegen
-    const startLeft = -150;
-    const startTop = h + 150;
-    const endLeft = w + 150;
-    const endTop = -150;
-
-    // 4. Der absolut sichere Animations-Motor
-    fabric.util.animate({
-        startValue: 0,   // 0% der Strecke
-        endValue: 1,     // 100% der Strecke
-        duration: 1000,  // Dauer: 1 Sekunde
-        easing: fabric.util.ease.easeOutSine,
-        onChange: function(value) {
-            // value geht von 0.0 bis 1.0. Wir berechnen damit jeden Millimeter!
-            schwamm.set({
-                left: startLeft + (endLeft - startLeft) * value,
-                top: startTop + (endTop - startTop) * value
-            });
-
-            // Wenn der Schwamm fast in der Mitte ist (40% der Strecke), löschen wir die Bilder!
-            if (sollLeinwandGeloeschtWerden && value > 0.4 && alteObjekte.length > 0) {
+    // 3. Nur in EINE Richtung animieren (absolut absturzsicher!)
+    schwamm.animate('left', 1000, {
+        duration: 1000, // 1 Sekunde lang
+        onChange: function() {
+            // Wenn der Balken die Mitte (400px) überquert, löschen wir die Bilder im Hintergrund
+            if (schwamm.left > 400 && sollLeinwandGeloeschtWerden && alteObjekte.length > 0) {
                 alteObjekte.forEach(obj => {
                     if (obj.canvas) canvas.remove(obj);
                 });
-                alteObjekte.length = 0; // Liste leeren, damit es nicht doppelt ausgeführt wird
+                alteObjekte.length = 0; // Leeren, damit es nicht mehrfach probiert wird
             }
-
-            // Zwingt die Leinwand, das Update als Video-Frame zu zeichnen
+            // ZWINGEND: Bild updaten
             canvas.requestRenderAll();
         },
         onComplete: function() {
-            // Am Ende der Strecke den Schwamm selbst löschen
+            // Balken am Ende löschen
             canvas.remove(schwamm);
             canvas.requestRenderAll();
         }
@@ -315,10 +295,13 @@ function spieleWischAnimation(sollLeinwandGeloeschtWerden) {
 }
 
 document.getElementById('clearBtn').addEventListener('click', () => {
-    if (!fertigeAudioDatei) return alert("Bitte zuerst Audio aufnehmen/hochladen!");
+    if (!fertigeAudioDatei) {
+        alert("Bitte zuerst Audio aufnehmen/hochladen!");
+        return;
+    }
     autoPause();
 
-    // Spielt die Animation beim manuellen Klick ab
+    // Spielt unsere neue sichere Animation ab
     spieleWischAnimation(true);
 
     const aktuelleZeit = audioPlayback.currentTime || 0;
