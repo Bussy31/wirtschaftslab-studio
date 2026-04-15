@@ -254,48 +254,60 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
 });
 
 // --- TEIL 5: ANIMIERTES WISCHEN ---
-// --- TEIL 5: ANIMIERTES WISCHEN (NATIVE FABRIC-ANIMATION) ---
+// --- TEIL 5: ANIMIERTES WISCHEN (BOMBENSICHERE VERSION) ---
 function spieleWischAnimation(sollLeinwandGeloeschtWerden) {
-    const canvasWidth = canvas.width || 800;
-    const canvasHeight = canvas.height || 450;
+    const w = canvas.width || 800;
+    const h = canvas.height || 450;
 
-    // 1. Wir bauen den Schwamm als echtes Leinwand-Objekt
+    // 1. Schwamm auf die Leinwand legen
     const schwamm = new fabric.Rect({
-        left: -200,
-        top: canvasHeight + 100, // Start links unten (außerhalb des Bildes)
-        width: 150,
-        height: 150,
-        fill: '#f39c12', // Schwamm-Orange
-        rx: 20, ry: 20, // Runde Ecken
+        left: -150,
+        top: h + 150, // Start unten links
+        width: 120, height: 120,
+        fill: '#f39c12', // Orangene Schwamm-Farbe
+        rx: 15, ry: 15, // Abgerundete Ecken
         originX: 'center', originY: 'center',
-        selectable: false, evented: false
+        selectable: false, evented: false,
+        shadow: new fabric.Shadow({ color: 'rgba(0,0,0,0.3)', blur: 10, offsetX: 5, offsetY: 5 })
     });
 
     canvas.add(schwamm);
 
-    // 2. Wir merken uns alle Objekte, die VOR dem Wischen auf der Tafel lagen
+    // 2. Alle aktuell sichtbaren Objekte auf eine "Todesliste" setzen
     const alteObjekte = canvas.getObjects().filter(o => o !== schwamm);
 
-    // 3. Die Bewegung starten
-    schwamm.animate({
-        left: canvasWidth + 200, // Ziel: Rechts oben (außerhalb des Bildes)
-        top: -200
-    }, {
-        duration: 1000, // Dauer: 1 Sekunde
+    // 3. Start- und Zielpunkte für die Diagonale festlegen
+    const startLeft = -150;
+    const startTop = h + 150;
+    const endLeft = w + 150;
+    const endTop = -150;
+
+    // 4. Der absolut sichere Animations-Motor
+    fabric.util.animate({
+        startValue: 0,   // 0% der Strecke
+        endValue: 1,     // 100% der Strecke
+        duration: 1000,  // Dauer: 1 Sekunde
         easing: fabric.util.ease.easeOutSine,
-        onChange: function() {
-            // Wenn der Schwamm ca. das erste Drittel erreicht hat, wischen wir die alten Objekte weg
-            if (schwamm.left > (canvasWidth / 3) && sollLeinwandGeloeschtWerden && alteObjekte.length > 0) {
+        onChange: function(value) {
+            // value geht von 0.0 bis 1.0. Wir berechnen damit jeden Millimeter!
+            schwamm.set({
+                left: startLeft + (endLeft - startLeft) * value,
+                top: startTop + (endTop - startTop) * value
+            });
+
+            // Wenn der Schwamm fast in der Mitte ist (40% der Strecke), löschen wir die Bilder!
+            if (sollLeinwandGeloeschtWerden && value > 0.4 && alteObjekte.length > 0) {
                 alteObjekte.forEach(obj => {
                     if (obj.canvas) canvas.remove(obj);
                 });
-                alteObjekte.length = 0; // Liste leeren, damit es nicht mehrfach aufgerufen wird
+                alteObjekte.length = 0; // Liste leeren, damit es nicht doppelt ausgeführt wird
             }
-            // ZWINGEND: Bild während der Bewegung für das Video neu zeichnen
+
+            // Zwingt die Leinwand, das Update als Video-Frame zu zeichnen
             canvas.requestRenderAll();
         },
         onComplete: function() {
-            // Wenn die Bewegung fertig ist, den Schwamm selbst löschen
+            // Am Ende der Strecke den Schwamm selbst löschen
             canvas.remove(schwamm);
             canvas.requestRenderAll();
         }
@@ -306,6 +318,7 @@ document.getElementById('clearBtn').addEventListener('click', () => {
     if (!fertigeAudioDatei) return alert("Bitte zuerst Audio aufnehmen/hochladen!");
     autoPause();
 
+    // Spielt die Animation beim manuellen Klick ab
     spieleWischAnimation(true);
 
     const aktuelleZeit = audioPlayback.currentTime || 0;
@@ -314,13 +327,6 @@ document.getElementById('clearBtn').addEventListener('click', () => {
     addMarker(aktuelleZeit, objId, 'var(--warning)');
     updateProtokoll();
     autoSave();
-});
-
-document.getElementById('clearBtn').addEventListener('click', () => {
-    if (!fertigeAudioDatei) return alert("Bitte zuerst Audio aufnehmen/hochladen!");
-    autoPause(); spieleWischAnimation(true); const aktuelleZeit = audioPlayback.currentTime || 0;
-    const objId = generateId(); videoDrehbuch.push({ id: objId, zeit: aktuelleZeit, aktion: 'alles_wischen' });
-    addMarker(aktuelleZeit, objId, 'var(--warning)'); updateProtokoll(); autoSave();
 });
 
 
