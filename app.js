@@ -255,64 +255,61 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
 
 // --- TEIL 5: ANIMIERTES WISCHEN ---
 function spieleWischAnimation(sollLeinwandGeloeschtWerden) {
-    // Das ist dein Schwamm-Bild von Wikipedia, das du bisher im CSS hattest!
-    const schwammUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Sponge-153862.svg/512px-Sponge-153862.svg.png';
+    // Failsafe: Ein gelber Block als Schwamm (lädt garantiert und sofort)
+    const schwamm = new fabric.Rect({
+        left: -150,
+        top: canvas.height + 150, // Start links unten
+        width: 120,
+        height: 120,
+        fill: '#f1c40f', // Schönes Schwamm-Gelb
+        rx: 15, // Abgerundete Ecken
+        ry: 15,
+        originX: 'center',
+        originY: 'center',
+        selectable: false,
+        evented: false,
+        shadow: new fabric.Shadow({ color: 'rgba(0,0,0,0.4)', blur: 10, offsetX: 5, offsetY: 5 })
+    });
 
-    fabric.Image.fromURL(schwammUrl, function(schwamm) {
-        // Schwamm positionieren: Startet unten links außerhalb des Bildes
-        schwamm.set({
-            left: -150,
-            top: canvas.height + 150,
-            scaleX: 0.6,
-            scaleY: 0.6,
-            originX: 'center',
-            originY: 'center',
-            selectable: false,
-            evented: false
-        });
+    // Schwamm auf die Tafel legen
+    canvas.add(schwamm);
 
-        canvas.add(schwamm);
+    // Alle anderen Bilder/Texte merken
+    const objekteAufTafel = canvas.getObjects().filter(o => o !== schwamm);
 
-        // Alle Bilder/Texte merken, die gerade auf der Tafel liegen
-        const objekteAufTafel = canvas.getObjects().filter(o => o !== schwamm);
+    // Animation starten
+    schwamm.animate({
+        left: canvas.width + 150, // Ziel rechts
+        top: -150                 // Ziel oben
+    }, {
+        duration: 1200, // 1.2 Sekunden Dauer
+        easing: fabric.util.ease.easeInOutCubic,
+        onChange: () => {
+            // Rechnen, wo der Schwamm gerade ist
+            const schwammFortschritt = schwamm.left - schwamm.top;
 
-        // Animation: Schwamm fährt nach oben rechts
-        schwamm.animate({
-            left: canvas.width + 150,
-            top: -150
-        }, {
-            duration: 1200, // Dauer in Millisekunden (1.2 Sekunden)
-            easing: fabric.util.ease.easeInOutCubic,
-            onChange: () => {
-                // MAGIE: Berechnen, wie weit der Schwamm auf der Diagonale ist
-                // Wenn er sich nach rechts-oben bewegt, steigt dieser Wert
-                const schwammFortschritt = schwamm.left - schwamm.top;
-
-                objekteAufTafel.forEach(obj => {
-                    // Position des Objekts auf der Diagonale berechnen
-                    const objFortschritt = obj.left - obj.top;
-
-                    // Sobald der Schwamm das Objekt "überholt" hat, wird es gelöscht!
-                    if (schwammFortschritt > objFortschritt) {
-                        canvas.remove(obj);
-                    }
-                });
-
-                // Bildschirmausgabe aktualisieren
-                canvas.requestRenderAll();
-            },
-            onComplete: () => {
-                // Wenn er fertig durchgefahren ist: Aufräumen
-                if (sollLeinwandGeloeschtWerden) {
-                    canvas.clear();
-                    canvas.backgroundColor = '#ffffff';
-                } else {
-                    canvas.remove(schwamm);
+            // Prüfen, ob der Schwamm über ein Objekt gewischt ist
+            objekteAufTafel.forEach(obj => {
+                const objFortschritt = obj.left - obj.top;
+                if (schwammFortschritt > objFortschritt) {
+                    canvas.remove(obj);
                 }
-                canvas.requestRenderAll();
+            });
+
+            // Bild live aktualisieren!
+            canvas.requestRenderAll();
+        },
+        onComplete: () => {
+            // Aufräumen am Ende
+            if (sollLeinwandGeloeschtWerden) {
+                canvas.clear();
+                canvas.backgroundColor = '#ffffff';
+            } else {
+                canvas.remove(schwamm);
             }
-        });
-    }, { crossOrigin: 'anonymous' });
+            canvas.requestRenderAll();
+        }
+    });
 }
 
 document.getElementById('clearBtn').addEventListener('click', () => {
