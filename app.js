@@ -245,7 +245,7 @@ document.getElementById('addTextBtn').addEventListener('click', () => {
     text.myId = objId; canvas.add(text); canvas.setActiveObject(text);
     const aktuelleZeit = audioPlayback.currentTime || 0;
     videoDrehbuch.push({ id: objId, zeit: aktuelleZeit, aktion: 'text_hinzufuegen', text: 'Tippe...', x: 250, y: 200, scaleX: 1, scaleY: 1 });
-    addMarker(aktuelleZeit, objId, 'rgba(142,68,173,0.7)'); updateProtokoll(); autoSave();
+    addMarker(aktuelleZeit, objId, 'rgb(46,213,115)'); updateProtokoll(); autoSave();
 });
 
 document.getElementById('deleteBtn').addEventListener('click', () => {
@@ -363,7 +363,7 @@ searchBtn.addEventListener('click', async () => {
 
                 const aktuelleZeit = audioPlayback.currentTime || 0;
                 videoDrehbuch.push({ id: objId, zeit: aktuelleZeit, aktion: 'bild_hinzufuegen', url: hit.full, x: x, y: y, scaleX: 0.3, scaleY: 0.3 });
-                addMarker(aktuelleZeit, objId, 'rgba(142,68,173,0.7)'); updateProtokoll(); autoSave();
+                addMarker(aktuelleZeit, objId, 'rgb(46,213,115)'); updateProtokoll(); autoSave();
             }, { crossOrigin: 'anonymous' });
         });
         searchResults.appendChild(img);
@@ -384,7 +384,7 @@ dropZone.addEventListener('drop', (e) => {
             fabricImg.myId = objId; canvas.add(fabricImg); canvas.setActiveObject(fabricImg);
             const aktuelleZeit = audioPlayback.currentTime || 0;
             videoDrehbuch.push({ id: objId, zeit: aktuelleZeit, aktion: 'bild_hinzufuegen', url: bildUrl, x: x - (fabricImg.width * 0.3) / 2, y: y - (fabricImg.height * 0.3) / 2, scaleX: 0.3, scaleY: 0.3 });
-            addMarker(aktuelleZeit, objId, 'rgba(142,68,173,0.7)'); updateProtokoll(); autoSave();
+            addMarker(aktuelleZeit, objId, 'rgb(46,213,115)'); updateProtokoll(); autoSave();
         }, { crossOrigin: 'anonymous' });
     }
 });
