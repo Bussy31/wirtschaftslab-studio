@@ -255,11 +255,64 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
 
 // --- TEIL 5: ANIMIERTES WISCHEN ---
 function spieleWischAnimation(sollLeinwandGeloeschtWerden) {
-    const wipeArm = document.getElementById('wipeArm');
-    wipeArm.style.transition = 'left 0.8s ease-in-out'; wipeArm.style.left = '0%';
-    setTimeout(() => { if (sollLeinwandGeloeschtWerden) canvas.clear(); }, 400);
-    setTimeout(() => { wipeArm.style.left = '100%'; }, 800);
-    setTimeout(() => { wipeArm.style.transition = 'none'; wipeArm.style.left = '-100%'; }, 1600);
+    // Das ist dein Schwamm-Bild von Wikipedia, das du bisher im CSS hattest!
+    const schwammUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Sponge-153862.svg/512px-Sponge-153862.svg.png';
+
+    fabric.Image.fromURL(schwammUrl, function(schwamm) {
+        // Schwamm positionieren: Startet unten links außerhalb des Bildes
+        schwamm.set({
+            left: -150,
+            top: canvas.height + 150,
+            scaleX: 0.6,
+            scaleY: 0.6,
+            originX: 'center',
+            originY: 'center',
+            selectable: false,
+            evented: false
+        });
+
+        canvas.add(schwamm);
+
+        // Alle Bilder/Texte merken, die gerade auf der Tafel liegen
+        const objekteAufTafel = canvas.getObjects().filter(o => o !== schwamm);
+
+        // Animation: Schwamm fährt nach oben rechts
+        schwamm.animate({
+            left: canvas.width + 150,
+            top: -150
+        }, {
+            duration: 1200, // Dauer in Millisekunden (1.2 Sekunden)
+            easing: fabric.util.ease.easeInOutCubic,
+            onChange: () => {
+                // MAGIE: Berechnen, wie weit der Schwamm auf der Diagonale ist
+                // Wenn er sich nach rechts-oben bewegt, steigt dieser Wert
+                const schwammFortschritt = schwamm.left - schwamm.top;
+
+                objekteAufTafel.forEach(obj => {
+                    // Position des Objekts auf der Diagonale berechnen
+                    const objFortschritt = obj.left - obj.top;
+
+                    // Sobald der Schwamm das Objekt "überholt" hat, wird es gelöscht!
+                    if (schwammFortschritt > objFortschritt) {
+                        canvas.remove(obj);
+                    }
+                });
+
+                // Bildschirmausgabe aktualisieren
+                canvas.requestRenderAll();
+            },
+            onComplete: () => {
+                // Wenn er fertig durchgefahren ist: Aufräumen
+                if (sollLeinwandGeloeschtWerden) {
+                    canvas.clear();
+                    canvas.backgroundColor = '#ffffff';
+                } else {
+                    canvas.remove(schwamm);
+                }
+                canvas.requestRenderAll();
+            }
+        });
+    }, { crossOrigin: 'anonymous' });
 }
 
 document.getElementById('clearBtn').addEventListener('click', () => {
