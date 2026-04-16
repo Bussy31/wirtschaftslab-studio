@@ -259,7 +259,7 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
 });
 
 window.spieleWischAnimation = function(isVorschau = false) {
-    fabric.Image.fromURL('schwamm.jpg', function(img) {
+    fabric.Image.fromURL('schwamm.png', function(img) {
         const scale = 250 / img.height; // Größe des Schwamms einstellen
 
         img.set({
