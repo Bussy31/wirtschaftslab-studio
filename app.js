@@ -260,7 +260,7 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
 
 window.spieleWischAnimation = function(isVorschau = false) {
     fabric.Image.fromURL('schwamm.png', function(img) {
-        const scale = 250 / img.height; // Größe des Schwamms einstellen
+        const scale = 500 / img.height; // Größe des Schwamms einstellen
 
         img.set({
             left: -(img.width * scale),
@@ -279,7 +279,7 @@ window.spieleWischAnimation = function(isVorschau = false) {
         fabric.util.animate({
             startValue: -(img.width * scale),
             endValue: canvas.width + 100,
-            duration: 1000,
+            duration: 2000,
             onChange: function(value) {
                 img.set('left', value);
 
