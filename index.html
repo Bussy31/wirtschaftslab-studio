@@ -104,12 +104,6 @@
         .delete-action-btn { background: none; border: none; color: var(--danger); font-size: 14px; cursor: pointer; padding: 0 5px; }
         .delete-action-btn:hover { transform: scale(1.2); }
 
-        #wipeArm {
-            position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
-            background: url('https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Sponge-153862.svg/512px-Sponge-153862.svg.png') right center no-repeat;
-            background-size: 150px; z-index: 100; pointer-events: none;
-        }
-
         /* --- Professioneller Audio-Timeline Look --- */
         #timeline-container {
             position: relative;
@@ -251,7 +245,6 @@
 
         <div class="main-column">
             <div class="canvas-container-wrapper" id="dropZone">
-                <div id="wipeArm"></div>
                 <canvas id="fabricCanvas" width="800" height="450"></canvas>
                 <div id="timeline-container" title="Klicke hier, um zu einer Zeit zu springen">
                     <div id="playhead"></div>
