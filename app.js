@@ -260,17 +260,12 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
 
 window.spieleWischAnimation = function(isVorschau = false) {
     fabric.Image.fromURL('schwamm.png', function(img) {
-        if (!img) return; // Sicherheits-Check
+        const scale = 500 / img.height; // Größe des Schwamms einstellen
 
-        const scale = 250 / img.height;
-        const scaledWidth = img.width * scale;
-
-        // WICHTIG: originX MUSS 'center' sein, sonst dreht sich der Schwamm wie ein Pendel um die obere linke Ecke!
         img.set({
-            originX: 'center',
-            originY: 'center',
-            left: -scaledWidth, // Startet unsichtbar links außerhalb
+            left: -(img.width * scale),
             top: canvas.height / 2,
+            originY: 'center',
             scaleX: scale,
             scaleY: scale,
             selectable: false,
@@ -281,42 +276,18 @@ window.spieleWischAnimation = function(isVorschau = false) {
         canvas.add(img);
         let wurdeGeloescht = false;
 
-        // Start- und Endpunkt sauber definieren
-        const startX = -scaledWidth;
-        const endX = canvas.width + scaledWidth;
-
         fabric.util.animate({
-            startValue: startX,
-            endValue: endX,
-            duration: 1600, // Dauer auf 1,6 Sekunden erhöht, damit das Schrubben gut wirkt
+            startValue: -(img.width * scale),
+            endValue: canvas.width + 100,
+            duration: 2000,
             onChange: function(value) {
-                // 1. Fortschritt der Animation berechnen (0.0 am Start, 1.0 am Ende)
-                const progress = (value - startX) / (endX - startX);
+                img.set('left', value);
 
-                // 2. Wackel-Intensität berechnen (0 an den Rändern, 1.0 genau in der Mitte der Leinwand)
-                const intensity = Math.sin(progress * Math.PI);
-
-                // 3. Schrubb-Bewegung berechnen (Sinus-Wellen multipliziert mit der Intensität)
-                // Dreht sich bis zu 35 Grad hin und her:
-                const wackelWinkel = intensity * Math.sin(progress * Math.PI * 10) * 35;
-                // Fährt bis zu 60 Pixel hoch und runter:
-                const wackelHoehe = intensity * Math.sin(progress * Math.PI * 8) * 60;
-
-                // 4. Bewegung auf das Bild anwenden
-                img.set({
-                    left: value,
-                    top: (canvas.height / 2) + wackelHoehe,
-                    angle: wackelWinkel
-                });
-
-                // 5. Bei exakt der Hälfte der Strecke (progress > 0.5) die Leinwand leeren
-                if (!wurdeGeloescht && progress > 0.5) {
+                // Sobald der Schwamm das erste Drittel passiert, Leinwand leeren
+                if (!wurdeGeloescht && value > canvas.width / 3) {
                     const objects = canvas.getObjects();
                     for (let i = objects.length - 1; i >= 0; i--) {
-                        // Wichtig: Den Schwamm selbst NICHT löschen!
-                        if (objects[i] !== img) {
-                            canvas.remove(objects[i]);
-                        }
+                        if (objects[i] !== img) canvas.remove(objects[i]);
                     }
                     canvas.backgroundColor = '#ffffff';
                     wurdeGeloescht = true;
