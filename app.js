@@ -258,8 +258,62 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
     if (activeObject) window.loescheAktionManuell(activeObject.myId);
 });
 
-// --- TEIL 5: ANIMIERTES WISCHEN ---
-// --- TEIL 5: ALLES WISCHEN (OHNE ANIMATION - SOFORT LÖSCHEN) ---
+// --- NEU: Echte Canvas-Wisch-Animation (Video-Export tauglich!) ---
+window.spieleWischAnimation = function(isVorschau = false) {
+    // 1. Schwamm-Bild in Fabric.js laden
+    fabric.Image.fromURL('schwamm.jpg', function(img) {
+
+        // Skaliere den Schwamm auf eine ordentliche Größe (z.B. 250px Höhe)
+        const scale = 250 / img.height;
+
+        img.set({
+            left: -(img.width * scale), // Startet links unsichtbar außerhalb der Leinwand
+            top: canvas.height / 2,     // Auf halber Höhe
+            originY: 'center',
+            scaleX: scale,
+            scaleY: scale,
+            selectable: false,
+            evented: false
+        });
+
+        canvas.add(img);
+
+        let wurdeGeloescht = false;
+
+        // 2. Fabric.js Animation starten (läuft für 1000 Millisekunden)
+        fabric.util.animate({
+            startValue: -(img.width * scale),
+            endValue: canvas.width + 50, // Fährt bis rechts aus dem Bild
+            duration: 1000,
+            onChange: function(value) {
+                // Bewegt den Schwamm Frame für Frame nach rechts
+                img.set('left', value);
+
+                // Sobald der Schwamm das erste Drittel erreicht, alles andere löschen
+                if (!wurdeGeloescht && value > canvas.width / 3) {
+                    const alleObjekte = canvas.getObjects();
+                    // WICHTIG: Rückwärts durch die Objekte gehen beim Löschen!
+                    for (let i = alleObjekte.length - 1; i >= 0; i--) {
+                        if (alleObjekte[i] !== img) {
+                            canvas.remove(alleObjekte[i]);
+                        }
+                    }
+                    canvas.backgroundColor = '#ffffff';
+                    wurdeGeloescht = true;
+                }
+
+                canvas.requestRenderAll();
+            },
+            onComplete: function() {
+                // Am Ende der Animation den Schwamm wieder unsichtbar machen/entfernen
+                canvas.remove(img);
+                canvas.requestRenderAll();
+            }
+        });
+    });
+};
+
+// --- TEIL 5: ANIMIERTES WISCHEN AUF DEM CANVAS ---
 document.getElementById('clearBtn').addEventListener('click', () => {
     if (!fertigeAudioDatei) {
         alert("Bitte zuerst Audio aufnehmen/hochladen!");
@@ -267,17 +321,16 @@ document.getElementById('clearBtn').addEventListener('click', () => {
     }
     autoPause();
 
-    // 1. Leinwand sofort knallhart leeren
-    canvas.clear();
-    canvas.requestRenderAll();
-
-    // 2. Aktion in der Zeitleiste und im Protokoll speichern
+    // 1. Aktion in der Zeitleiste und im Protokoll speichern
     const aktuelleZeit = audioPlayback.currentTime || 0;
     const objId = generateId();
     videoDrehbuch.push({ id: objId, zeit: aktuelleZeit, aktion: 'alles_wischen' });
     addMarker(aktuelleZeit, objId, 'var(--warning)');
     updateProtokoll();
     autoSave();
+
+    // 2. Die neue Video-taugliche Canvas-Animation starten!
+    spieleWischAnimation();
 });
 
 
